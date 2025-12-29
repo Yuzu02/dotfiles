@@ -8,13 +8,24 @@
 set -euo pipefail
 echo -e "\033[0;32m>>>>> Installing modern CLI tools <<<<<\033[0m"
 
-# Detect package manager
+# ============================================================================
+# SUDO WRAPPER - Handle root user case
+# ============================================================================
+if [ "$(id -u)" -eq 0 ]; then
+    SUDO=""
+else
+    SUDO="sudo"
+fi
+
+# ============================================================================
+# PACKAGE MANAGER DETECTION
+# ============================================================================
 if command -v paru &>/dev/null; then
     PKG_INSTALL="paru -S --needed --noconfirm"
 elif command -v yay &>/dev/null; then
     PKG_INSTALL="yay -S --needed --noconfirm"
 elif command -v pacman &>/dev/null; then
-    PKG_INSTALL="sudo pacman -S --needed --noconfirm"
+    PKG_INSTALL="$SUDO pacman -S --needed --noconfirm"
 else
     PKG_INSTALL=""
 fi

@@ -1,0 +1,162 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 00-SETUP-ARCH-FRESH
+# Bootstrap script for fresh Arch Linux installations
+# Handles: sudo installation, user creation, pacman keyring, base packages
+# ==============================================================================
+
+set -euo pipefail
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  🏗️  Fresh Arch Linux Bootstrap${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# ============================================================================
+# DETECT IF RUNNING AS ROOT ON FRESH ARCH
+# ============================================================================
+IS_ROOT=false
+IS_FRESH_ARCH=false
+
+if [ "$(id -u)" -eq 0 ]; then
+    IS_ROOT=true
+    log_info "Running as root"
+fi
+
+# Check if this is a fresh Arch install (no sudo, minimal packages)
+if command -v pacman &>/dev/null && ! command -v sudo &>/dev/null; then
+    IS_FRESH_ARCH=true
+    log_info "Detected fresh Arch Linux installation"
+fi
+
+# ============================================================================
+# SKIP IF NOT FRESH ARCH AS ROOT
+# ============================================================================
+if [ "$IS_ROOT" = false ] || [ "$IS_FRESH_ARCH" = false ]; then
+    if command -v sudo &>/dev/null; then
+        log_success "System already configured (sudo available)"
+        exit 0
+    fi
+fi
+
+# ============================================================================
+# FRESH ARCH BOOTSTRAP (Running as root)
+# ============================================================================
+if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
+    log_info "Starting fresh Arch Linux bootstrap..."
+    
+    # 1. Initialize pacman keyring
+    log_info "Initializing pacman keyring..."
+    pacman-key --init 2>/dev/null || true
+    pacman-key --populate archlinux 2>/dev/null || true
+    
+    # 2. Update system
+    log_info "Updating system packages..."
+    pacman -Syu --noconfirm
+    
+    # 3. Install essential packages
+    log_info "Installing essential packages..."
+    pacman -S --needed --noconfirm \
+        base-devel \
+        git \
+        curl \
+        wget \
+        sudo \
+        vim \
+        man-db \
+        man-pages \
+        openssh \
+        unzip \
+        zip \
+        tar \
+        gzip \
+        xdg-utils \
+        less
+    
+    log_success "Essential packages installed"
+    
+    # 4. Configure sudo for wheel group
+    log_info "Configuring sudo..."
+    if [ ! -f /etc/sudoers.d/wheel ]; then
+        echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
+        chmod 440 /etc/sudoers.d/wheel
+        log_success "Sudo configured for wheel group"
+    fi
+    
+    # 5. Check if user exists (from chezmoi config)
+    CURRENT_USER="{{ .chezmoi.username }}"
+    
+    if [ "$CURRENT_USER" = "root" ]; then
+        log_warn "Running as root user - please create a regular user after setup"
+        log_info "You can create a user with:"
+        echo -e "  ${YELLOW}useradd -m -G wheel -s /bin/zsh USERNAME${NC}"
+        echo -e "  ${YELLOW}passwd USERNAME${NC}"
+    else
+        # Ensure user is in wheel group
+        if id "$CURRENT_USER" &>/dev/null; then
+            if ! groups "$CURRENT_USER" | grep -q wheel; then
+                usermod -aG wheel "$CURRENT_USER"
+                log_success "Added $CURRENT_USER to wheel group"
+            fi
+        fi
+    fi
+    
+    # 6. Configure locales
+    log_info "Configuring locales..."
+    if ! grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen; then
+        sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+        locale-gen
+    fi
+    
+    if [ ! -f /etc/locale.conf ]; then
+        cat > /etc/locale.conf << 'EOF'
+LANG=en_US.UTF-8
+LC_TIME=en_US.UTF-8
+LC_COLLATE=C
+EOF
+    fi
+    log_success "Locales configured"
+    
+    # 7. Optimize pacman
+    log_info "Optimizing pacman configuration..."
+    if ! grep -q "^ParallelDownloads" /etc/pacman.conf; then
+        sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
+        sed -i 's/#Color/Color/' /etc/pacman.conf
+        sed -i 's/#VerbosePkgLists/VerbosePkgLists/' /etc/pacman.conf
+    fi
+    log_success "Pacman optimized"
+    
+    # 8. Install paru (AUR helper)
+    if ! command -v paru &>/dev/null; then
+        log_info "Installing paru (AUR helper)..."
+        
+        # Create temporary user for building if we're root
+        if [ "$(id -u)" -eq 0 ]; then
+            # We can't run makepkg as root, so we'll skip paru for now
+            log_warn "Cannot install paru as root - will be installed later"
+            log_info "Run the following as a regular user to install paru:"
+            echo -e "  ${YELLOW}cd /tmp && git clone https://aur.archlinux.org/paru.git${NC}"
+            echo -e "  ${YELLOW}cd paru && makepkg -si${NC}"
+        fi
+    fi
+    
+    log_success "Fresh Arch Linux bootstrap complete!"
+fi
+
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}  ✅ Bootstrap Phase Complete${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+{{ end -}}
