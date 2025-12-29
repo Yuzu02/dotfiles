@@ -567,12 +567,86 @@ main() {
     echo -e "Minimal Mode: ${BOLD}$MINIMAL_MODE${NC}"
     echo ""
     
-    # Check if running as root
+    # Special handling for root on fresh install
     if [ "$(id -u)" -eq 0 ]; then
-        log_warn "Running as root - user creation may be required"
+        log_warn "Running as root"
+        
+        # Check if this is a fresh install (no sudo = bootstrap needed)
+        if ! command -v sudo &>/dev/null; then
+            log_step "🏗️ Fresh System Detected - Bootstrapping..."
+            
+            # Detect distro
+            detect_system
+            
+            # Install base packages including sudo
+            install_base_packages
+            
+            # Determine target user
+            TARGET_USER=""
+            if [ -n "$GITHUB_USER" ] && [ "$GITHUB_USER" != "root" ]; then
+                TARGET_USER=$(echo "$GITHUB_USER" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_-')
+            else
+                TARGET_USER="yuzu"
+            fi
+            
+            # Create user if needed
+            if ! id "$TARGET_USER" &>/dev/null 2>&1; then
+                log_info "Creating user: $TARGET_USER"
+                
+                case "$OS" in
+                    arch|archlinux|endeavouros|manjaro|fedora|rhel|centos|rocky)
+                        useradd -m -G wheel -s /bin/bash "$TARGET_USER" 2>/dev/null || true
+                        echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel 2>/dev/null || true
+                        chmod 440 /etc/sudoers.d/wheel 2>/dev/null || true
+                        ;;
+                    ubuntu|debian|linuxmint|pop)
+                        useradd -m -G sudo -s /bin/bash "$TARGET_USER" 2>/dev/null || true
+                        ;;
+                    *)
+                        useradd -m -s /bin/bash "$TARGET_USER" 2>/dev/null || true
+                        ;;
+                esac
+                
+                # Set temporary password
+                TEMP_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
+                echo "$TARGET_USER:$TEMP_PASS" | chpasswd 2>/dev/null || true
+                log_success "User $TARGET_USER created (password: $TEMP_PASS)"
+                log_warn "Please change password after login!"
+            fi
+            
+            # Install chezmoi system-wide
+            log_info "Installing chezmoi..."
+            sh -c "$(curl -fsLS get.chezmoi.io)" -- -b /usr/local/bin
+            
+            # Now run chezmoi as the target user
+            log_step "🚀 Continuing as $TARGET_USER..."
+            
+            USER_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6 || echo "/home/$TARGET_USER")
+            
+            # Run chezmoi init as target user with non-interactive mode
+            export CHEZMOI_EMAIL="${CHEZMOI_EMAIL:-$TARGET_USER@localhost}"
+            export CHEZMOI_NAME="${CHEZMOI_NAME:-$TARGET_USER}"
+            export CHEZMOI_GITHUB_USER="${CHEZMOI_GITHUB_USER:-$GITHUB_USER}"
+            
+            if su - "$TARGET_USER" -c "chezmoi init --apply $GITHUB_USER" 2>&1; then
+                log_success "🎉 Setup completed successfully!"
+            else
+                log_warn "Chezmoi init had issues. Please run manually:"
+                echo -e "  ${CYAN}su - $TARGET_USER${NC}"
+                echo -e "  ${CYAN}chezmoi init --apply $GITHUB_USER${NC}"
+            fi
+            
+            echo ""
+            log_info "Please log in as $TARGET_USER to use your new environment"
+            echo ""
+            
+            exit 0
+        else
+            log_warn "Running as root with sudo available - proceeding with caution"
+        fi
     fi
     
-    # Execute installation steps
+    # Execute installation steps (normal non-root path)
     detect_system
     install_base_packages
     install_nix
