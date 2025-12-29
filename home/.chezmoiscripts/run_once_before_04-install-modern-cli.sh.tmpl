@@ -34,34 +34,72 @@ elif command -v yay &>/dev/null; then
     PKG_INSTALL="yay -S --needed --noconfirm"
 elif command -v pacman &>/dev/null; then
     PKG_INSTALL="$SUDO pacman -S --needed --noconfirm"
+elif command -v apt-get &>/dev/null; then
+    PKG_INSTALL="$SUDO apt-get install -y"
+elif command -v dnf &>/dev/null; then
+    PKG_INSTALL="$SUDO dnf install -y"
 else
-    PKG_INSTALL=""
+    echo "No supported package manager found!"
+    exit 1
 fi
 
 # Modern CLI replacements
-CLI_PKGS=(
-    eza bat ripgrep fd
-    btop dust duf procs
-    git-delta lazygit
-    yazi zellij
-    neovim mise
-)
-
-if [ -n "$PKG_INSTALL" ]; then
+if command -v pacman &>/dev/null; then
+    # Arch Linux packages
+    CLI_PKGS=(
+        eza bat ripgrep fd
+        btop dust duf procs
+        git-delta lazygit
+        yazi zellij
+        neovim mise
+        fastfetch
+    )
     $PKG_INSTALL "${CLI_PKGS[@]}" &>/dev/null
-fi
-
-echo -e "${GREEN}✓ Modern CLI tools installed${NC}"
-{{ end -}}
-    $PKG_INSTALL "${CLI_PKGS[@]}" || true
-fi
-
-# Install fastfetch
-if ! command -v fastfetch &>/dev/null; then
-    if [ -n "$PKG_INSTALL" ]; then
-        $PKG_INSTALL fastfetch || true
+elif command -v apt-get &>/dev/null; then
+    # Ubuntu/Debian packages
+    $SUDO apt-get update &>/dev/null
+    CLI_PKGS=(
+        bat ripgrep fd-find
+        btop
+        neovim
+    )
+    $PKG_INSTALL "${CLI_PKGS[@]}" &>/dev/null
+    
+    # Install eza from cargo or build from source if not in repos
+    if ! command -v eza &>/dev/null && command -v cargo &>/dev/null; then
+        cargo install eza &>/dev/null || true
+    fi
+    
+    # Install lazygit from GitHub if not in repos
+    if ! command -v lazygit &>/dev/null; then
+        LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+        curl -sLo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+        $SUDO tar xf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit
+        rm /tmp/lazygit.tar.gz
+    fi
+    
+elif command -v dnf &>/dev/null; then
+    # Fedora/RHEL packages
+    CLI_PKGS=(
+        eza bat ripgrep fd-find
+        btop
+        neovim
+        git-delta
+    )
+    $PKG_INSTALL "${CLI_PKGS[@]}" &>/dev/null
+    
+    # Install lazygit from copr if available
+    if ! command -v lazygit &>/dev/null; then
+        $SUDO dnf copr enable atim/lazygit -y &>/dev/null || true
+        $PKG_INSTALL lazygit &>/dev/null || {
+            # Fallback to GitHub release
+            LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+            curl -sLo /tmp/lazygit.tar.gz "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LAZYGIT_VERSION}_Linux_x86_64.tar.gz"
+            $SUDO tar xf /tmp/lazygit.tar.gz -C /usr/local/bin lazygit
+            rm /tmp/lazygit.tar.gz
+        }
     fi
 fi
 
-echo -e "\033[0;32m>>>>> Modern CLI tools installed <<<<<\033[0m"
+echo -e "${GREEN}✓ Modern CLI tools installed${NC}"
 {{ end -}}

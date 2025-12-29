@@ -1,9 +1,9 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 00-SETUP-ARCH-FRESH
-# Bootstrap script for fresh Arch Linux installations
-# Handles: sudo installation, user creation, pacman keyring, base packages
+# 00-SETUP-LINUX-FRESH
+# Bootstrap script for fresh Linux installations (Arch, Ubuntu, Fedora)
+# Handles: sudo installation, user creation, package manager setup, base packages
 # ==============================================================================
 
 set -euo pipefail
@@ -22,30 +22,42 @@ log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}  🏗️  Fresh Arch Linux Bootstrap${NC}"
+echo -e "${CYAN}  🏗️  Fresh Linux Bootstrap${NC}"
 echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ============================================================================
-# DETECT IF RUNNING AS ROOT ON FRESH ARCH
+# DETECT LINUX DISTRIBUTION
+# ============================================================================
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    DISTRO=$ID
+    log_info "Detected distribution: $DISTRO"
+else
+    log_error "Cannot detect Linux distribution"
+    exit 1
+fi
+
+# ============================================================================
+# DETECT IF RUNNING AS ROOT
 # ============================================================================
 IS_ROOT=false
-IS_FRESH_ARCH=false
+IS_FRESH_INSTALL=false
 
 if [ "$(id -u)" -eq 0 ]; then
     IS_ROOT=true
     log_info "Running as root"
 fi
 
-# Check if this is a fresh Arch install (no sudo, minimal packages)
-if command -v pacman &>/dev/null && ! command -v sudo &>/dev/null; then
-    IS_FRESH_ARCH=true
-    log_info "Detected fresh Arch Linux installation"
+# Check if this is a fresh install (no sudo)
+if ! command -v sudo &>/dev/null; then
+    IS_FRESH_INSTALL=true
+    log_info "Detected fresh installation (no sudo)"
 fi
 
 # ============================================================================
-# SKIP IF NOT FRESH ARCH AS ROOT
+# SKIP IF ALREADY CONFIGURED
 # ============================================================================
-if [ "$IS_ROOT" = false ] || [ "$IS_FRESH_ARCH" = false ]; then
+if [ "$IS_ROOT" = false ] || [ "$IS_FRESH_INSTALL" = false ]; then
     if command -v sudo &>/dev/null; then
         log_success "System already configured (sudo available)"
         exit 0
@@ -53,49 +65,97 @@ if [ "$IS_ROOT" = false ] || [ "$IS_FRESH_ARCH" = false ]; then
 fi
 
 # ============================================================================
-# FRESH ARCH BOOTSTRAP (Running as root)
+# FRESH INSTALL BOOTSTRAP
 # ============================================================================
-if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
-    log_info "Starting fresh Arch Linux bootstrap..."
+if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_INSTALL" = true ]; then
+    log_info "Starting fresh Linux bootstrap..."
     
-    # 1. Initialize pacman keyring
-    log_info "Initializing pacman keyring..."
-    pacman-key --init &>/dev/null || true
-    pacman-key --populate archlinux &>/dev/null || true
-    log_success "Pacman keyring initialized"
+    # ============================================================================
+    # DISTRIBUTION-SPECIFIC BOOTSTRAP
+    # ============================================================================
+    case "$DISTRO" in
+        arch|archlinux)
+            log_info "Bootstrapping Arch Linux..."
+            
+            # Initialize pacman keyring
+            log_info "Initializing pacman keyring..."
+            pacman-key --init &>/dev/null || true
+            pacman-key --populate archlinux &>/dev/null || true
+            log_success "Pacman keyring initialized"
+            
+            # Update system
+            log_info "Updating system packages..."
+            pacman -Syu --noconfirm &>/dev/null
+            log_success "System updated"
+            
+            # Install essential packages
+            log_info "Installing essential packages..."
+            pacman -S --needed --noconfirm \
+                base-devel git curl wget sudo vim \
+                man-db man-pages openssh unzip zip \
+                tar gzip xdg-utils less &>/dev/null
+            log_success "Essential packages installed"
+            ;;
+            
+        ubuntu|debian)
+            log_info "Bootstrapping Ubuntu/Debian..."
+            
+            # Update package lists
+            log_info "Updating package lists..."
+            apt-get update &>/dev/null
+            log_success "Package lists updated"
+            
+            # Install essential packages
+            log_info "Installing essential packages..."
+            DEBIAN_FRONTEND=noninteractive apt-get install -y \
+                build-essential git curl wget sudo vim \
+                man-db manpages openssh-client unzip zip \
+                tar gzip xdg-utils less ca-certificates &>/dev/null
+            log_success "Essential packages installed"
+            ;;
+            
+        fedora|rhel|centos)
+            log_info "Bootstrapping Fedora/RHEL..."
+            
+            # Update system
+            log_info "Updating system packages..."
+            dnf upgrade -y &>/dev/null
+            log_success "System updated"
+            
+            # Install essential packages
+            log_info "Installing essential packages..."
+            dnf install -y \
+                @development-tools git curl wget sudo vim \
+                man-db man-pages openssh-clients unzip zip \
+                tar gzip xdg-utils less &>/dev/null
+            log_success "Essential packages installed"
+            ;;
+            
+        *)
+            log_warn "Unknown distribution: $DISTRO"
+            log_info "Attempting generic setup..."
+            ;;
+    esac
     
-    # 2. Update system
-    log_info "Updating system packages..."
-    pacman -Syu --noconfirm &>/dev/null
-    log_success "System updated"
-    
-    # 3. Install essential packages
-    log_info "Installing essential packages..."
-    pacman -S --needed --noconfirm \
-        base-devel \
-        git \
-        curl \
-        wget \
-        sudo \
-        vim \
-        man-db \
-        man-pages \
-        openssh \
-        unzip \
-        zip \
-        tar \
-        gzip \
-        xdg-utils \
-        less &>/dev/null
-    
-    log_success "Essential packages installed"
-    
-    # 4. Configure sudo for wheel group
+    # 4. Configure sudo for wheel/sudo group
     log_info "Configuring sudo..."
-    if [ ! -f /etc/sudoers.d/wheel ]; then
-        echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
-        chmod 440 /etc/sudoers.d/wheel
-        log_success "Sudo configured for wheel group"
+    if [ ! -f /etc/sudoers.d/wheel ] && [ ! -f /etc/sudoers.d/sudo ]; then
+        case "$DISTRO" in
+            arch|archlinux)
+                echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
+                chmod 440 /etc/sudoers.d/wheel
+                log_success "Sudo configured for wheel group"
+                ;;
+            ubuntu|debian)
+                # Sudo group already configured by default on Debian/Ubuntu
+                log_success "Sudo group already configured"
+                ;;
+            fedora|rhel|centos)
+                echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
+                chmod 440 /etc/sudoers.d/wheel
+                log_success "Sudo configured for wheel group"
+                ;;
+        esac
     fi
     
     # 5. Create user automatically if running as root
@@ -115,7 +175,15 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
         # Create user if doesn't exist
         if ! id "$NEW_USER" &>/dev/null 2>&1; then
             log_info "Creating user: $NEW_USER"
-            useradd -m -G wheel -s /bin/bash "$NEW_USER"
+            
+            case "$DISTRO" in
+                arch|archlinux|fedora|rhel|centos)
+                    useradd -m -G wheel -s /bin/bash "$NEW_USER"
+                    ;;
+                ubuntu|debian)
+                    useradd -m -G sudo -s /bin/bash "$NEW_USER"
+                    ;;
+            esac
             
             # Set a temporary password (user should change it)
             echo "$NEW_USER:changeme" | chpasswd
@@ -125,82 +193,150 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
             log_info "User $NEW_USER already exists"
         fi
         
-        # Ensure user is in wheel group
-        if ! groups "$NEW_USER" | grep -q wheel; then
-            usermod -aG wheel "$NEW_USER"
-            log_success "Added $NEW_USER to wheel group"
-        fi
+        # Ensure user is in correct group
+        case "$DISTRO" in
+            arch|archlinux|fedora|rhel|centos)
+                if ! groups "$NEW_USER" | grep -q wheel; then
+                    usermod -aG wheel "$NEW_USER"
+                    log_success "Added $NEW_USER to wheel group"
+                fi
+                ;;
+            ubuntu|debian)
+                if ! groups "$NEW_USER" | grep -q sudo; then
+                    usermod -aG sudo "$NEW_USER"
+                    log_success "Added $NEW_USER to sudo group"
+                fi
+                ;;
+        esac
         
         # Create flag file to indicate we need to switch user
         echo "$NEW_USER" > /tmp/.chezmoi-switch-user
         
     else
-        # Ensure user is in wheel group
+        # Ensure user is in correct group
         if id "$CHEZMOI_USER" &>/dev/null; then
-            if ! groups "$CHEZMOI_USER" | grep -q wheel; then
-                usermod -aG wheel "$CHEZMOI_USER"
-                log_success "Added $CHEZMOI_USER to wheel group"
-            fi
+            case "$DISTRO" in
+                arch|archlinux|fedora|rhel|centos)
+                    if ! groups "$CHEZMOI_USER" | grep -q wheel; then
+                        usermod -aG wheel "$CHEZMOI_USER"
+                        log_success "Added $CHEZMOI_USER to wheel group"
+                    fi
+                    ;;
+                ubuntu|debian)
+                    if ! groups "$CHEZMOI_USER" | grep -q sudo; then
+                        usermod -aG sudo "$CHEZMOI_USER"
+                        log_success "Added $CHEZMOI_USER to sudo group"
+                    fi
+                    ;;
+            esac
         fi
     fi
     
     # 6. Configure locales
     log_info "Configuring locales..."
-    if ! grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen; then
-        sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-        locale-gen &>/dev/null
-    fi
-    
-    if [ ! -f /etc/locale.conf ]; then
-        cat > /etc/locale.conf << 'EOF'
+    case "$DISTRO" in
+        arch|archlinux)
+            if ! grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen; then
+                sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+                locale-gen &>/dev/null
+            fi
+            if [ ! -f /etc/locale.conf ]; then
+                cat > /etc/locale.conf << 'EOF'
 LANG=en_US.UTF-8
 LC_TIME=en_US.UTF-8
 LC_COLLATE=C
 EOF
-    fi
+            fi
+            ;;
+        ubuntu|debian)
+            if ! locale -a | grep -q en_US.utf8; then
+                locale-gen en_US.UTF-8 &>/dev/null || true
+                update-locale LANG=en_US.UTF-8 &>/dev/null || true
+            fi
+            ;;
+        fedora|rhel|centos)
+            localectl set-locale LANG=en_US.UTF-8 &>/dev/null || true
+            ;;
+    esac
     log_success "Locales configured"
     
-    # 7. Optimize pacman
-    log_info "Optimizing pacman configuration..."
-    if ! grep -q "^ParallelDownloads" /etc/pacman.conf; then
-        sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
-        sed -i 's/#Color/Color/' /etc/pacman.conf
-        sed -i 's/#VerbosePkgLists/VerbosePkgLists/' /etc/pacman.conf
-    fi
-    log_success "Pacman optimized"
+    # 7. Optimize package manager
+    log_info "Optimizing package manager..."
+    case "$DISTRO" in
+        arch|archlinux)
+            if ! grep -q "^ParallelDownloads" /etc/pacman.conf; then
+                sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf
+                sed -i 's/#Color/Color/' /etc/pacman.conf
+                sed -i 's/#VerbosePkgLists/VerbosePkgLists/' /etc/pacman.conf
+            fi
+            ;;
+        ubuntu|debian)
+            # Enable parallel downloads in apt
+            if [ ! -f /etc/apt/apt.conf.d/99parallel ]; then
+                echo 'Acquire::Queue-Mode "host";' > /etc/apt/apt.conf.d/99parallel
+                echo 'Acquire::http::Pipeline-Depth "5";' >> /etc/apt/apt.conf.d/99parallel
+            fi
+            ;;
+        fedora|rhel|centos)
+            # Enable fastest mirror and parallel downloads
+            if ! grep -q "^fastestmirror=" /etc/dnf/dnf.conf; then
+                echo "fastestmirror=True" >> /etc/dnf/dnf.conf
+                echo "max_parallel_downloads=10" >> /etc/dnf/dnf.conf
+            fi
+            ;;
+    esac
+    log_success "Package manager optimized"
     
-    # 8. Install paru (AUR helper)
-    if ! command -v paru &>/dev/null; then
-        log_info "Installing paru (AUR helper)..."
-        
-        # Create temporary user for building if we're root
-        if [ "$(id -u)" -eq 0 ]; then
-            # We can't run makepkg as root, so we'll skip paru for now
-            log_warn "Cannot install paru as root - will be installed later"
-            log_info "Run the following as a regular user to install paru:"
-            echo -e "  ${YELLOW}cd /tmp && git clone https://aur.archlinux.org/paru.git${NC}"
-            echo -e "  ${YELLOW}cd paru && makepkg -si${NC}"
+    # 8. Install AUR helper (Arch only)
+    if [ "$DISTRO" = "arch" ] || [ "$DISTRO" = "archlinux" ]; then
+        if ! command -v paru &>/dev/null; then
+            log_info "Installing paru (AUR helper)..."
+            
+            if [ "$(id -u)" -eq 0 ]; then
+                log_warn "Cannot install paru as root - will be installed later"
+                log_info "Run the following as a regular user to install paru:"
+                echo -e "  ${YELLOW}cd /tmp && git clone https://aur.archlinux.org/paru.git${NC}"
+                echo -e "  ${YELLOW}cd paru && makepkg -si${NC}"
+            fi
         fi
     fi
     
-    log_success "Fresh Arch Linux bootstrap complete!"
+    log_success "Fresh Linux bootstrap complete!"
     
-    # Check if we need to switch user
+    # Check if we need to switch user and continue automatically
     if [ -f /tmp/.chezmoi-switch-user ]; then
         NEW_USER=$(cat /tmp/.chezmoi-switch-user)
         rm -f /tmp/.chezmoi-switch-user
         
         log_info ""
-        log_info "Switching to user $NEW_USER to continue installation..."
-        log_info "Temporary password: changeme (please change after setup!)"
+        log_info "Switching to user $NEW_USER and continuing installation..."
         log_info ""
         
-        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${YELLOW}  ⚠️  User created. Please switch and continue:${NC}"
-        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-        echo -e "${CYAN}su - $NEW_USER${NC}"
-        echo -e "${CYAN}sh -c \"\$(curl -fsLS get.chezmoi.io)\" -- init --apply {{ .github_user }}${NC}"
-        exit 99
+        # Copy chezmoi config to new user's home
+        if [ -f /root/.config/chezmoi/chezmoi.toml ]; then
+            mkdir -p /home/$NEW_USER/.config/chezmoi
+            cp /root/.config/chezmoi/chezmoi.toml /home/$NEW_USER/.config/chezmoi/
+            chown -R $NEW_USER:$NEW_USER /home/$NEW_USER/.config
+        fi
+        
+        # Copy current chezmoi source to new user
+        if [ -d /root/.local/share/chezmoi ]; then
+            mkdir -p /home/$NEW_USER/.local/share
+            cp -r /root/.local/share/chezmoi /home/$NEW_USER/.local/share/
+            chown -R $NEW_USER:$NEW_USER /home/$NEW_USER/.local/share/chezmoi
+        fi
+        
+        # Continue installation as new user
+        log_info "Continuing installation as $NEW_USER..."
+        su - $NEW_USER -c "chezmoi apply -v" || {
+            log_warn "Continuing installation as $NEW_USER..."
+            su - $NEW_USER -c "sh -c \"\$(curl -fsLS get.chezmoi.io)\" -- init --apply {{ .github_user }}"
+        }
+        
+        log_success "Installation complete!"
+        log_warn "Please change the password for $NEW_USER (currently: changeme)"
+        echo -e "${YELLOW}passwd${NC}"
+        exit 0
     fi
 fi
 

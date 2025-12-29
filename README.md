@@ -10,7 +10,11 @@
 
 <br/>
 
+[![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://kernel.org/)
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://archlinux.org/)
+[![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
+[![Fedora](https://img.shields.io/badge/Fedora-51A2DA?style=for-the-badge&logo=fedora&logoColor=white)](https://fedoraproject.org/)
+
 [![WSL2](https://img.shields.io/badge/WSL2-0078D4?style=for-the-badge&logo=windows-terminal&logoColor=white)](https://docs.microsoft.com/en-us/windows/wsl/)
 [![Nix](https://img.shields.io/badge/Nix-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org/)
 [![Home Manager](https://img.shields.io/badge/Home_Manager-41454A?style=for-the-badge&logo=nixos&logoColor=white)](https://nix-community.github.io/home-manager/)
@@ -80,13 +84,14 @@
 
 ## 📖 Overview
 
-This repository contains my personal dotfiles and system configurations, managed as **Infrastructure as Code** for **maximum reproducibility**. A single command bootstraps a fresh **Arch Linux** or **WSL2** installation with all my tools, configurations, and preferences.
+This repository contains my personal dotfiles and system configurations, managed as **Infrastructure as Code** for **maximum reproducibility**. A single command bootstraps a fresh **Linux** installation (Arch, Ubuntu, Fedora, or WSL2) with all my tools, configurations, and preferences.
 
 ### ✨ Features
 
 | Feature | Description |
 |:--------|:------------|
 | 🔄 **Reproducible** | Same environment on any machine, byte-for-byte identical |
+| 🐧 **Multi-Distro** | Works on Arch, Ubuntu, Fedora, and their derivatives |
 | 🔐 **Templated** | Machine-specific configs and secrets handled safely |
 | 🚀 **Fast Bootstrap** | Single command setup, works from fresh root install |
 | 🌐 **Cross-Platform** | Arch Linux, Ubuntu, Fedora, WSL2 support |
@@ -130,31 +135,44 @@ quadrantChart
 ### One-Line Bootstrap
 
 ```bash
-# 🔥 Fresh Arch/WSL install - fully automatic setup!
+# 🔥 Fresh Linux install - fully automatic setup!
+# Works on Arch, Ubuntu, Fedora, and derivatives
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Yuzu02
 ```
 
-> **✨ Fully Automatic:** Works on fresh Arch installations even as root! The script will automatically create a user, install sudo, and guide you to continue as that user.
+> **✨ Fully Automatic:** Works on fresh Linux installations even as root! The script detects your distribution, installs required packages, creates a user, and sets everything up automatically.
+
+### Supported Distributions
+
+| Distribution | Package Manager | Status |
+|:-------------|:----------------|:-------|
+| 🔵 **Arch Linux** | pacman/paru/yay | ✅ Fully Supported |
+| 🟠 **Ubuntu/Debian** | apt-get | ✅ Fully Supported |
+| 🔴 **Fedora/RHEL** | dnf | ✅ Fully Supported |
+| 🟢 **WSL2** | Any of above | ✅ Fully Supported |
 
 ### What Happens Automatically
 
 | Step | Action |
 |:-----|:-------|
-| 1️⃣ | Detects if running as root on fresh Arch |
-| 2️⃣ | Initializes pacman keyring |
-| 3️⃣ | Installs sudo and base-devel |
+| 1️⃣ | Detects your Linux distribution |
+| 2️⃣ | Initializes package manager (pacman keys, apt repos, dnf cache) |
+| 3️⃣ | Installs sudo and build tools |
 | 4️⃣ | Creates a regular user (uses your GitHub username) |
-| 5️⃣ | Configures sudo for wheel group |
-| 6️⃣ | Prompts you to switch to the new user |
-| 7️⃣ | Continue installation as regular user |
+| 5️⃣ | Configures sudo for wheel/sudo group |
+| 6️⃣ | Automatically switches to new user |
+| 7️⃣ | Continues installation as regular user |
+| 8️⃣ | Installs shell tools, modern CLI, dev tools |
 
-> **Note:** If running as root, a user will be created with temporary password `changeme`. You'll be prompted to switch to that user to continue the installation.
+> **Note:** If running as root, a user will be created with temporary password `changeme`. The script will automatically switch to that user and continue the installation.
 
 ### Manual Installation
 
 ```bash
 # 1️⃣ Install chezmoi
-sudo pacman -S chezmoi  # Arch
+sudo pacman -S chezmoi       # Arch
+sudo apt-get install chezmoi # Ubuntu/Debian
+sudo dnf install chezmoi     # Fedora
 # or
 curl -fsLS get.chezmoi.io | sh  # Universal
 
@@ -661,20 +679,63 @@ pacman -Qqe > ~/pacman-packages.txt
 ## 🔧 Troubleshooting
 
 <details>
-<summary><b>🚫 "sudo: command not found" on fresh Arch</b></summary>
+<summary><b>🚫 "sudo: command not found" on fresh install</b></summary>
 
-This is expected on fresh Arch installations. The scripts now handle this automatically by:
+This is expected on fresh Linux installations. The scripts now handle this automatically by:
 
 1. Detecting if running as root
-2. Installing sudo and base-devel
-3. Configuring the wheel group
+2. Detecting your Linux distribution
+3. Installing sudo and build tools using the appropriate package manager
+4. Configuring the wheel (Arch/Fedora) or sudo (Ubuntu) group
 
 If you still encounter issues:
+
+**Arch Linux:**
 
 ```bash
 # As root
 pacman -S sudo base-devel
 echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/wheel
+```
+
+**Ubuntu/Debian:**
+
+```bash
+# As root
+apt-get update && apt-get install -y sudo
+usermod -aG sudo your_username
+```
+
+**Fedora/RHEL:**
+
+```bash
+# As root
+dnf install -y sudo
+usermod -aG wheel your_username
+```
+
+</details>
+
+<details>
+<summary><b>📦 Package not found on my distro</b></summary>
+
+Some packages have different names across distributions:
+
+| Tool | Arch | Ubuntu/Debian | Fedora |
+|:-----|:-----|:--------------|:-------|
+| **fd** | fd | fd-find | fd-find |
+| **bat** | bat | bat | bat |
+| **carapace** | carapace | (install from GitHub) | (install from copr) |
+| **eza** | eza | (cargo install) | eza |
+
+The scripts handle these differences automatically. If a package fails:
+
+```bash
+# Check what failed
+journalctl -xe
+
+# Install manually
+cargo install <package>  # For Rust tools
 ```
 
 </details>

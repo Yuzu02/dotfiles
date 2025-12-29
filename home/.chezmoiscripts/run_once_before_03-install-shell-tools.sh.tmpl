@@ -35,36 +35,82 @@ elif command -v yay &>/dev/null; then
     PKG_INSTALL="yay -S --needed --noconfirm"
 elif command -v pacman &>/dev/null; then
     PKG_INSTALL="$SUDO pacman -S --needed --noconfirm"
+elif command -v apt-get &>/dev/null; then
+    PKG_INSTALL="$SUDO apt-get install -y"
+elif command -v dnf &>/dev/null; then
+    PKG_INSTALL="$SUDO dnf install -y"
 else
-    PKG_INSTALL=""
+    echo "No supported package manager found!"
+    exit 1
 fi
 
-SHELL_PKGS=(
-    zsh
-    starship
-    zoxide
-    atuin
-    fzf
-    direnv
-    carapace
-)
-
-if [ -n "$PKG_INSTALL" ]; then
+# Install shell packages based on distro
+if command -v pacman &>/dev/null; then
+    # Arch Linux
+    SHELL_PKGS=(
+        zsh
+        starship
+        zoxide
+        atuin
+        fzf
+        direnv
+        carapace
+    )
     $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1 || {
         echo -e "${YELLOW}⚠ Some packages may have failed, continuing...${NC}"
     }
+elif command -v apt-get &>/dev/null; then
+    # Ubuntu/Debian
+    $SUDO apt-get update &>/dev/null
+    SHELL_PKGS=(
+        zsh
+        fzf
+        direnv
+    )
+    $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
+    
+    # Install starship via curl
+    if ! command -v starship &>/dev/null; then
+        curl -sS https://starship.rs/install.sh | sh -s -- -y &>/dev/null
+    fi
+    
+    # Install zoxide via cargo or curl
+    if ! command -v zoxide &>/dev/null; then
+        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
+    fi
+    
+    # Install atuin via cargo or curl
+    if ! command -v atuin &>/dev/null; then
+        curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
+    fi
+    
+elif command -v dnf &>/dev/null; then
+    # Fedora/RHEL
+    SHELL_PKGS=(
+        zsh
+        starship
+        fzf
+        direnv
+    )
+    $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
+    
+    # Install zoxide
+    if ! command -v zoxide &>/dev/null; then
+        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
+    fi
+    
+    # Install atuin
+    if ! command -v atuin &>/dev/null; then
+        curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
+    fi
 fi
 
 # Install Oh My Zsh if not present
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
     # Ensure zsh is installed before running Oh My Zsh installer
     if ! command -v zsh &>/dev/null; then
-        if [ -n "$PKG_INSTALL" ]; then
-            $PKG_INSTALL zsh &>/dev/null 2>&1 || {
-                echo -e "${YELLOW}⚠ Failed to install zsh, skipping Oh My Zsh${NC}"
-                exit 0
-            }
-        fi
+        echo -e "${YELLOW}⚠ zsh not found, skipping Oh My Zsh${NC}"
+        exit 0
     fi
     
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null
