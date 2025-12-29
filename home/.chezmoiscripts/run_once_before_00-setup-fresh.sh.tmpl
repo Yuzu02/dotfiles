@@ -1,14 +1,12 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 00-SETUP-LINUX-FRESH (Universal - 2025/2026 Best Practices)
+# 00-SETUP-LINUX-FRESH (Universal - 2025/2026 Best Practices - FIXED)
 # Bootstrap script for fresh Linux installations
 # Handles: sudo installation, user creation, package manager setup
 # 
-# KEY DESIGN DECISIONS:
-# 1. If running as root on fresh install 🛠️ setup system, create user, EXIT
-# 2. User must then login as regular user and re-run chezmoi
-# 3. This avoids all permission issues with su/sudo during chezmoi run
+# KEY DESIGN: This script only runs as root on truly fresh systems.
+# For regular users, it exits immediately.
 # ==============================================================================
 
 set -euo pipefail
@@ -27,9 +25,9 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}  🏗️  Fresh Linux Bootstrap${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  🗿️ Fresh Linux Bootstrap${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ============================================================================
 # DETECT LINUX DISTRIBUTION
@@ -47,18 +45,11 @@ fi
 # DETECT IF RUNNING AS ROOT
 # ============================================================================
 IS_ROOT=false
-IS_FRESH_INSTALL=false
 GITHUB_USER="{{ .github_user }}"
 
 if [ "$(id -u)" -eq 0 ]; then
     IS_ROOT=true
     log_info "Running as root"
-fi
-
-# Check if this is a fresh install (no sudo available)
-if ! command -v sudo &>/dev/null; then
-    IS_FRESH_INSTALL=true
-    log_info "Detected fresh installation (no sudo)"
 fi
 
 # ============================================================================
@@ -70,15 +61,23 @@ if [ "$IS_ROOT" = false ]; then
         exit 0
     else
         log_error "Not running as root but sudo is not available!"
-        log_info "Please run as root first to bootstrap the system."
+        log_info "This should not happen in normal usage."
+        log_info "If this is a fresh system, please run: su -c 'curl -fsLS get.chezmoi.io | sh -s -- init --apply ${GITHUB_USER}'"
         exit 1
     fi
 fi
 
 # ============================================================================
-# ROOT PATH: Bootstrap fresh system
+# ROOT PATH: Bootstrap fresh system (only if sudo doesn't exist)
 # ============================================================================
 if [ "$IS_ROOT" = true ]; then
+    # Check if this is truly a fresh install
+    if command -v sudo &>/dev/null; then
+        log_success "Sudo already installed - system is already bootstrapped"
+        log_info "Skipping fresh system setup"
+        exit 0
+    fi
+    
     log_info "Starting fresh Linux bootstrap as root..."
     
     # ========================================================================
@@ -236,69 +235,6 @@ if [ "$IS_ROOT" = true ]; then
     esac
     
     # ========================================================================
-    # CREATE REGULAR USER IF RUNNING AS ROOT
-    # ========================================================================
-    # Determine target username
-    TARGET_USER=""
-    if [ -n "$GITHUB_USER" ] && [ "$GITHUB_USER" != "root" ] && [ "$GITHUB_USER" != "" ]; then
-        TARGET_USER="$GITHUB_USER"
-    elif [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
-        TARGET_USER="$SUDO_USER"
-    else
-        # Fallback: use "yuzu" as default
-        TARGET_USER="yuzu"
-    fi
-    
-    # Normalize username (lowercase, remove special chars)
-    TARGET_USER=$(echo "$TARGET_USER" | tr '[:upper:]' '[:lower:]' | tr -cd '[:alnum:]_-')
-    
-    log_info "Target user: $TARGET_USER"
-    
-    # Create user if doesn't exist
-    if ! id "$TARGET_USER" &>/dev/null 2>&1; then
-        log_info "Creating user: $TARGET_USER"
-        
-        case "$DISTRO" in
-            arch|archlinux|endeavouros|manjaro|fedora|rhel|centos|rocky|almalinux)
-                useradd -m -G wheel -s /bin/bash "$TARGET_USER" 2>/dev/null || \
-                useradd -m -G wheel "$TARGET_USER" 2>/dev/null || true
-                ;;
-            ubuntu|debian|linuxmint|pop)
-                useradd -m -G sudo -s /bin/bash "$TARGET_USER" 2>/dev/null || \
-                useradd -m -G sudo "$TARGET_USER" 2>/dev/null || true
-                ;;
-            alpine)
-                adduser -D -s /bin/bash "$TARGET_USER" 2>/dev/null || \
-                adduser -D "$TARGET_USER" 2>/dev/null || true
-                addgroup "$TARGET_USER" wheel 2>/dev/null || true
-                ;;
-            *)
-                useradd -m -s /bin/bash "$TARGET_USER" 2>/dev/null || true
-                ;;
-        esac
-        
-        # Set a random temporary password
-        TEMP_PASS=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 16)
-        echo "$TARGET_USER:$TEMP_PASS" | chpasswd 2>/dev/null || true
-        
-        log_success "User $TARGET_USER created"
-        log_warn "Temporary password: $TEMP_PASS"
-        log_warn "Please change it immediately after login with: passwd"
-    else
-        log_info "User $TARGET_USER already exists"
-    fi
-    
-    # Ensure user is in correct group
-    case "$DISTRO" in
-        arch|archlinux|endeavouros|manjaro|fedora|rhel|centos|rocky|almalinux)
-            usermod -aG wheel "$TARGET_USER" 2>/dev/null || true
-            ;;
-        ubuntu|debian|linuxmint|pop)
-            usermod -aG sudo "$TARGET_USER" 2>/dev/null || true
-            ;;
-    esac
-    
-    # ========================================================================
     # CONFIGURE LOCALES
     # ========================================================================
     log_info "Configuring locales..."
@@ -343,143 +279,13 @@ if [ "$IS_ROOT" = true ]; then
     esac
     log_success "Package manager optimized"
     
-    # ========================================================================
-    # INSTALL CHEZMOI FOR TARGET USER
-    # ========================================================================
-    log_info "Installing chezmoi for $TARGET_USER..."
-    
-    # Get the chezmoi binary path
-    CHEZMOI_BIN=""
-    if command -v chezmoi &>/dev/null; then
-        CHEZMOI_BIN=$(command -v chezmoi)
-    elif [ -f "$HOME/bin/chezmoi" ]; then
-        CHEZMOI_BIN="$HOME/bin/chezmoi"
-    elif [ -f "/root/bin/chezmoi" ]; then
-        CHEZMOI_BIN="/root/bin/chezmoi"
-    fi
-    
-    # Copy chezmoi to a system-wide location
-    if [ -n "$CHEZMOI_BIN" ] && [ -f "$CHEZMOI_BIN" ]; then
-        cp "$CHEZMOI_BIN" /usr/local/bin/chezmoi 2>/dev/null || true
-        chmod +x /usr/local/bin/chezmoi 2>/dev/null || true
-        log_success "Chezmoi installed to /usr/local/bin/chezmoi"
-    fi
-    
-    # ========================================================================
-    # AUTOMATIC CONTINUATION AS TARGET USER
-    # ========================================================================
-    log_info "Setting up automatic continuation for $TARGET_USER..."
-    
-    USER_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
-    if [ -z "$USER_HOME" ]; then
-        USER_HOME="/home/$TARGET_USER"
-    fi
-    
-    # Create the continuation script
-    CONTINUE_SCRIPT="$USER_HOME/.chezmoi-continue.sh"
-    
-    cat > "$CONTINUE_SCRIPT" << 'INNEREOF'
-#!/bin/bash
-# Auto-generated chezmoi continuation script
-# This runs as the target user to complete setup
-
-set -euo pipefail
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}  🚀 Continuing Chezmoi Setup...${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-
-# Ensure PATH includes common locations
-export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
-
-# Provide non-interactive defaults so templates don't prompt during continuation
-# Prefer any existing CHEZMOI_* env vars (for CI/manual overrides), otherwise
-# fall back to sensible defaults derived from the GitHub username placeholder.
-export CHEZMOI_GITHUB_USER="__GITHUB_USER_PLACEHOLDER__"
-export CHEZMOI_EMAIL="${CHEZMOI_EMAIL:-${CHEZMOI_GITHUB_USER}@localhost}"
-export CHEZMOI_NAME="${CHEZMOI_NAME:-${CHEZMOI_GITHUB_USER}}"
-
-# Also export these as plain variables used by some scripts
-GITHUB_USER="$CHEZMOI_GITHUB_USER"
-
-
-# Source Nix if available
-for profile in \
-    "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
-    "/etc/profile.d/nix.sh" \
-    "$HOME/.nix-profile/etc/profile.d/nix.sh"
-do
-    [ -e "$profile" ] && . "$profile" && break
-done
-
-# Run chezmoi init
-GITHUB_USER="__GITHUB_USER_PLACEHOLDER__"
-
-if command -v chezmoi &>/dev/null; then
-    echo -e "${BLUE}[INFO]${NC} Running non-interactive chezmoi init --apply $GITHUB_USER"
-    chezmoi init --apply "$GITHUB_USER"
-else
-    echo -e "${BLUE}[INFO]${NC} Installing chezmoi and applying dotfiles (non-interactive)..."
-    # Run installer which will place chezmoi in PATH, then re-run init using our env defaults
-    sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USER"
+    log_success "✅ Bootstrap phase complete"
+    log_info ""
+    log_info "System is now ready. Chezmoi will continue with regular setup."
+    log_info ""
 fi
 
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${GREEN}  ✅ Chezmoi Setup Complete!${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-
-# Self-destruct
-rm -f "$0"
-INNEREOF
-
-    # Replace placeholder with actual github user
-    sed -i "s/__GITHUB_USER_PLACEHOLDER__/$GITHUB_USER/g" "$CONTINUE_SCRIPT"
-    
-    chmod +x "$CONTINUE_SCRIPT"
-    chown "$TARGET_USER:$TARGET_USER" "$CONTINUE_SCRIPT" 2>/dev/null || \
-    chown "$TARGET_USER" "$CONTINUE_SCRIPT" 2>/dev/null || true
-    
-    log_success "Continuation script created at $CONTINUE_SCRIPT"
-    
-    # ========================================================================
-    # TRY AUTOMATIC CONTINUATION
-    # ========================================================================
-    echo ""
-    log_info "Attempting automatic continuation as $TARGET_USER..."
-    echo ""
-    
-    # Run the continuation script as the target user
-    if su - "$TARGET_USER" -c "bash '$CONTINUE_SCRIPT'" 2>&1; then
-        echo ""
-        log_success "🎉 Full setup completed successfully!"
-        echo ""
-        echo -e "${BOLD}Your environment is ready. Please:${NC}"
-        echo -e "  1. ${YELLOW}Log out of root${NC}"
-        echo -e "  2. ${YELLOW}Log in as: ${CYAN}$TARGET_USER${NC}"
-        echo -e "  3. ${YELLOW}Change your password:${NC} ${CYAN}passwd${NC}"
-        echo ""
-    else
-        echo ""
-        log_warn "Automatic continuation encountered issues."
-        echo ""
-        echo -e "${BOLD}Please complete setup manually:${NC}"
-        echo -e "  1. ${YELLOW}Log out of root${NC}"
-        echo -e "  2. ${YELLOW}Log in as: ${CYAN}$TARGET_USER${NC}"
-        echo -e "  3. ${YELLOW}Run:${NC} ${CYAN}chezmoi init --apply $GITHUB_USER${NC}"
-        echo ""
-    fi
-    
-    # Exit - don't let chezmoi continue as root
-    exit 0
-fi
-
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${GREEN}  ✅ Bootstrap Phase Complete${NC}"
-echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 {{ end -}}

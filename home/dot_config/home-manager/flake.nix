@@ -35,84 +35,122 @@
 
   outputs = { self, nixpkgs, home-manager, catppuccin, nix-index-database, flake-utils, nixgl, ... }@inputs:
     let
-      # Supported systems
-      supportedSystems = [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-      
-      # Helper function to generate outputs for each system
-      forAllSystems = nixpkgs.lib.genAttrs supportedSystems;
-      
-      # System-specific package sets
-      pkgsFor = system: import nixpkgs {
-        inherit system;
-        config = {
-          allowUnfree = true;
-          # Enable experimental features
-          experimental-features = [ "nix-command" "flakes" ];
-        };
-        overlays = [
-          nixgl.overlay
-        ];
-      };
-      
       # Common Home Manager modules
       commonModules = [
         catppuccin.homeManagerModules.catppuccin
         nix-index-database.hmModules.nix-index
       ];
       
-      # User configuration helper
-      mkHomeConfiguration = { system ? "x86_64-linux", username, configFile, extraModules ? [] }:
+      # Helper function to create home configuration
+      mkHomeConfiguration = { system, username, configFile }:
         home-manager.lib.homeManagerConfiguration {
-          pkgs = pkgsFor system;
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+            overlays = [ nixgl.overlay ];
+          };
+          
           modules = commonModules ++ [
             configFile
-          ] ++ extraModules;
+            {
+              home = {
+                username = username;
+                homeDirectory = "/home/${username}";
+                stateVersion = "24.11";
+              };
+            }
+          ];
+          
           extraSpecialArgs = {
-            inherit inputs;
-            inherit nixgl;
+            inherit inputs nixgl;
           };
         };
         
-    in {
-      # Home configurations for different users/machines
-      homeConfigurations = {
-        # Full configuration
-        "yuzu" = mkHomeConfiguration {
-          username = "yuzu";
+    in
+    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
+      {
+        # Make homeConfigurations available per-system in legacyPackages
+        # This fixes the "does not provide attribute" error
+        legacyPackages = {
+          homeConfigurations = {
+            # Full configuration - use actual username or "root" for root user
+            "root" = mkHomeConfiguration {
+              inherit system;
+              username = "root";
+              configFile = ./home.nix;
+            };
+            
+            # Minimal configuration
+            "root-minimal" = mkHomeConfiguration {
+              inherit system;
+              username = "root";
+              configFile = ./home-minimal.nix;
+            };
+            
+            # Generic username configurations
+            "yuzu" = mkHomeConfiguration {
+              inherit system;
+              username = "yuzu";
+              configFile = ./home.nix;
+            };
+            
+            "yuzu-minimal" = mkHomeConfiguration {
+              inherit system;
+              username = "yuzu";
+              configFile = ./home-minimal.nix;
+            };
+            
+            # Default fallback
+            "default" = mkHomeConfiguration {
+              inherit system;
+              username = builtins.getEnv "USER";
+              configFile = ./home.nix;
+            };
+          };
+        };
+      }
+    ) // {
+      # ALSO provide top-level homeConfigurations for compatibility
+      # This allows both methods to work:
+      # - nix build .#homeConfigurations.root.activationPackage
+      # - nix build .#legacyPackages.x86_64-linux.homeConfigurations.root.activationPackage
+      homeConfigurations = let
+        system = "x86_64-linux";
+      in {
+        "root" = mkHomeConfiguration {
+          inherit system;
+          username = "root";
           configFile = ./home.nix;
         };
         
-        # Minimal configuration for quick deploys
-        "yuzu-minimal" = mkHomeConfiguration {
-          username = "yuzu";
+        "root-minimal" = mkHomeConfiguration {
+          inherit system;
+          username = "root";
           configFile = ./home-minimal.nix;
         };
         
-        # Generic user configuration (uses $USER at build time)
-        "default" = mkHomeConfiguration {
-          username = "user";
+        "yuzu" = mkHomeConfiguration {
+          inherit system;
+          username = "yuzu";
           configFile = ./home.nix;
         };
         
-        # Container/CI optimized
-        "ci" = mkHomeConfiguration {
-          username = "runner";
+        "yuzu-minimal" = mkHomeConfiguration {
+          inherit system;
+          username = "yuzu";
           configFile = ./home-minimal.nix;
         };
       };
       
-      # Development shells for each system
-      devShells = forAllSystems (system: 
-        let pkgs = pkgsFor system; in {
+      # Development shell
+      devShells = flake-utils.lib.eachDefaultSystem (system: 
+        let pkgs = nixpkgs.legacyPackages.${system}; in {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              # Nix tools
               nil
               nixfmt-rfc-style
               nix-output-monitor
               nvd
-              
-              # Development
               git
               chezmoi
             ];
@@ -128,7 +166,9 @@
         }
       );
       
-      # Formatter for nix files
-      formatter = forAllSystems (system: (pkgsFor system).nixfmt-rfc-style);
+      # Formatter
+      formatter = flake-utils.lib.eachDefaultSystem (system: 
+        nixpkgs.legacyPackages.${system}.nixfmt-rfc-style
+      );
     };
 }

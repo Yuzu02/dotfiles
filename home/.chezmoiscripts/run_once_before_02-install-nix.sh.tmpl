@@ -1,7 +1,7 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 02-INSTALL-NIX (Universal - 2025/2026 Best Practices)
+# 02-INSTALL-NIX (Universal - 2025/2026 Best Practices - FIXED)
 # Nix package manager with flakes support via Determinate Systems installer
 # Works on: Arch, Ubuntu, Debian, Fedora, RHEL, openSUSE, Alpine, NixOS, WSL2
 # ==============================================================================
@@ -21,23 +21,27 @@ log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-echo -e "${CYAN}  ❄️  Nix Package Manager Installation${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  ❄️ Nix Package Manager Installation${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ==============================================================================
 # Check if already installed
 # ==============================================================================
 if command -v nix &>/dev/null; then
-    log_success "Nix already installed: $(nix --version 2>/dev/null || echo 'unknown')"
+    NIX_VERSION=$(nix --version 2>/dev/null || echo "unknown")
+    log_success "Nix already installed: $NIX_VERSION"
     
     # Ensure flakes are enabled
-    if [ -d "$HOME/.config/nix" ]; then
+    mkdir -p "$HOME/.config/nix"
+    if [ -f "$HOME/.config/nix/nix.conf" ]; then
         if ! grep -q "experimental-features" "$HOME/.config/nix/nix.conf" 2>/dev/null; then
-            mkdir -p "$HOME/.config/nix"
             echo "experimental-features = nix-command flakes" >> "$HOME/.config/nix/nix.conf"
             log_info "Enabled flakes in user config"
         fi
+    else
+        echo "experimental-features = nix-command flakes" > "$HOME/.config/nix/nix.conf"
+        log_info "Created user Nix configuration with flakes enabled"
     fi
     exit 0
 fi
@@ -63,15 +67,15 @@ log_info "Ensuring curl is available..."
 # Detect package manager and install curl if needed
 if ! command -v curl &>/dev/null; then
     if command -v apt-get &>/dev/null; then
-        sudo apt-get update -qq && sudo apt-get install -y -qq curl
+        sudo apt-get update -qq && sudo apt-get install -y -qq curl xz-utils
     elif command -v pacman &>/dev/null; then
-        sudo pacman -S --needed --noconfirm curl
+        sudo pacman -S --needed --noconfirm curl xz
     elif command -v dnf &>/dev/null; then
-        sudo dnf install -y curl
+        sudo dnf install -y curl xz
     elif command -v zypper &>/dev/null; then
-        sudo zypper --non-interactive install curl
+        sudo zypper --non-interactive install curl xz
     elif command -v apk &>/dev/null; then
-        sudo apk add --no-cache curl
+        sudo apk add --no-cache curl xz
     fi
 fi
 
@@ -94,10 +98,12 @@ else
     log_info "Trying alternative installation method..."
     
     # Fallback to official installer
-    sh <(curl -L https://nixos.org/nix/install) --daemon --yes || {
+    if sh <(curl -L https://nixos.org/nix/install) --daemon --yes; then
+        log_success "Nix installed via official installer"
+    else
         log_error "All installation methods failed"
         exit 1
-    }
+    fi
 fi
 
 # ==============================================================================
@@ -136,8 +142,21 @@ fi
 # ==============================================================================
 # Verify installation
 # ==============================================================================
+# Source again to make sure nix is available
+for profile in \
+    "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
+    "/etc/profile.d/nix.sh" \
+    "$HOME/.nix-profile/etc/profile.d/nix.sh"
+do
+    if [ -e "$profile" ]; then
+        . "$profile"
+        break
+    fi
+done
+
 if command -v nix &>/dev/null; then
-    log_success "Nix installed successfully: $(nix --version)"
+    NIX_VERSION=$(nix --version 2>/dev/null || echo "installed")
+    log_success "Nix installed successfully: $NIX_VERSION"
     
     # Test flakes support
     if nix flake --help &>/dev/null; then
@@ -145,7 +164,7 @@ if command -v nix &>/dev/null; then
     fi
 else
     log_error "Nix installation verification failed"
-    log_warn "You may need to restart your shell or run:"
+    log_warn "You may need to restart your shell or source the Nix profile:"
     log_warn "  . /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
 fi
 {{ end -}}

@@ -1,5 +1,10 @@
 { config, pkgs, lib, inputs, ... }:
 
+let
+  # Detectar username dinámicamente
+  username = builtins.getEnv "USER";
+  homeDirectory = builtins.getEnv "HOME";
+in
 {
   # ============================================================================
   # HOME MANAGER CONFIGURATION (2025/2026 Best Practices)
@@ -8,15 +13,15 @@
   # ============================================================================
 
   home = {
-    username = "yuzu";
-    homeDirectory = "/home/yuzu";
-    stateVersion = "24.11"; # Updated to latest stable
+    username = lib.mkDefault username;
+    homeDirectory = lib.mkDefault homeDirectory;
+    stateVersion = "24.11";
 
     # =========================================================================
     # PACKAGES - Modern CLI Tools
     # =========================================================================
     packages = with pkgs; [
-      # ── Core CLI Replacements ──────────────────────────────────────────────
+      # ── Core CLI Replacements ────────────────────────────────────────────
       eza                 # ls replacement with icons
       bat                 # cat replacement with syntax highlighting
       ripgrep             # grep replacement (rg)
@@ -31,51 +36,40 @@
       jq                  # JSON processor
       yq                  # YAML processor
       
-      # ── Git Tools ──────────────────────────────────────────────────────────
+      # ── Git Tools ────────────────────────────────────────────────────────
       delta               # Git diff viewer
       lazygit             # Git TUI
       gh                  # GitHub CLI
-      gitu                # Git TUI (alternative)
       
-      # ── Development ────────────────────────────────────────────────────────
+      # ── Development ──────────────────────────────────────────────────────
       neovim              # Modal editor
-      helix               # Modern modal editor
       
-      # ── System Monitoring ──────────────────────────────────────────────────
+      # ── System Monitoring ────────────────────────────────────────────────
       btop                # System monitor
       bottom              # Another system monitor (btm)
-      bandwhich           # Network utilization
       
-      # ── Terminal & Shell ───────────────────────────────────────────────────
+      # ── Terminal & Shell ─────────────────────────────────────────────────
       zellij              # Terminal multiplexer
       starship            # Cross-shell prompt
       atuin               # Shell history sync
       direnv              # Auto-load environments
       carapace            # Universal completions
       
-      # ── File Management ────────────────────────────────────────────────────
+      # ── File Management ──────────────────────────────────────────────────
       yazi                # Terminal file manager
-      broot               # Tree navigation
       
-      # ── Nix Tools ──────────────────────────────────────────────────────────
+      # ── Nix Tools ────────────────────────────────────────────────────────
       nil                 # Nix LSP
       nixfmt-rfc-style    # Nix formatter
       nix-output-monitor  # Pretty nix build output
-      nvd                 # Nix version diff
-      nix-tree            # Dependency tree viewer
       
-      # ── Utilities ──────────────────────────────────────────────────────────
+      # ── Utilities ────────────────────────────────────────────────────────
       fastfetch           # System info display
       httpie              # HTTP client
-      hyperfine           # Benchmarking
-      tokei               # Code statistics
       tealdeer            # tldr client
       
-      # ── Archive & Compression ──────────────────────────────────────────────
+      # ── Archive & Compression ────────────────────────────────────────────
       ouch                # Universal archive tool
-      
-      # ── Security ───────────────────────────────────────────────────────────
-      age                 # Modern encryption
     ];
 
     # =========================================================================
@@ -84,7 +78,7 @@
     sessionVariables = {
       EDITOR = "nvim";
       VISUAL = "nvim";
-      PAGER = "less -R";
+      PAGER = "bat";
       MANPAGER = "sh -c 'col -bx | bat -l man -p'";
       
       # XDG Base Directory
@@ -119,7 +113,6 @@
       du = "dust";
       df = "duf";
       ps = "procs";
-      sed = "sd";
       top = "btop";
       
       # Git
@@ -132,7 +125,6 @@
       lg = "lazygit";
       
       # Nix
-      nrs = "sudo nixos-rebuild switch";
       hms = "home-manager switch --flake ~/.config/home-manager";
       nfu = "nix flake update";
       
@@ -145,7 +137,6 @@
       
       # System
       reload = "exec $SHELL";
-      path = "echo $PATH | tr ':' '\n'";
     };
   };
 
@@ -182,9 +173,6 @@
       };
       
       initExtra = ''
-        # Load Catppuccin colors
-        export LS_COLORS="$(vivid generate catppuccin-mocha 2>/dev/null || echo "")"
-        
         # Keybindings
         bindkey '^[[A' history-search-backward
         bindkey '^[[B' history-search-forward
@@ -222,7 +210,6 @@
     # ── Prompt ───────────────────────────────────────────────────────────────
     starship = {
       enable = true;
-      catppuccin.enable = true;
       enableZshIntegration = true;
     };
     
@@ -250,19 +237,16 @@
     fzf = {
       enable = true;
       enableZshIntegration = true;
-      catppuccin.enable = true;
       defaultOptions = [
         "--height 40%"
         "--layout=reverse"
         "--border"
-        "--preview 'bat --color=always --style=numbers --line-range=:500 {} 2>/dev/null || eza -la --icons {}'"
       ];
     };
     
     # ── File Viewer ──────────────────────────────────────────────────────────
     bat = {
       enable = true;
-      catppuccin.enable = true;
       config = {
         style = "numbers,changes,header";
         italic-text = "always";
@@ -272,7 +256,6 @@
     # ── System Monitor ───────────────────────────────────────────────────────
     btop = {
       enable = true;
-      catppuccin.enable = true;
     };
     
     # ── Environment ──────────────────────────────────────────────────────────
@@ -280,12 +263,6 @@
       enable = true;
       enableZshIntegration = true;
       nix-direnv.enable = true;
-      config = {
-        global = {
-          warn_timeout = "30s";
-          hide_env_diff = true;
-        };
-      };
     };
     
     # ── Command Not Found ────────────────────────────────────────────────────
@@ -297,13 +274,11 @@
     # ── Terminal Multiplexer ─────────────────────────────────────────────────
     zellij = {
       enable = true;
-      catppuccin.enable = true;
     };
     
     # ── File Manager ─────────────────────────────────────────────────────────
     yazi = {
       enable = true;
-      catppuccin.enable = true;
       enableZshIntegration = true;
     };
     

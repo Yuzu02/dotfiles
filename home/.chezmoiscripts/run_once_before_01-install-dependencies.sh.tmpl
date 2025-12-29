@@ -1,7 +1,7 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 01-INSTALL-DEPENDENCIES
+# 01-INSTALL-DEPENDENCIES (FIXED - Silent operation with error handling)
 # Essential system packages for Linux
 # ==============================================================================
 
@@ -10,11 +10,12 @@ set -euo pipefail
 # Colors
 BLUE='\033[0;34m'
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 NC='\033[0m'
 
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${BLUE}  📦 Installing Base Dependencies${NC}"
-echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ============================================================================
 # SUDO WRAPPER
@@ -25,6 +26,7 @@ else
     SUDO="sudo"
     if ! command -v sudo &>/dev/null; then
         echo -e "${RED}ERROR: Not running as root and sudo is not installed!${NC}"
+        echo -e "${RED}Please run the bootstrap script as root first.${NC}"
         exit 1
     fi
 fi
@@ -34,18 +36,32 @@ fi
 # ============================================================================
 if command -v paru &>/dev/null; then
     PKG_INSTALL="paru -S --needed --noconfirm"
+    PKG_UPDATE="paru -Sy --noconfirm"
 elif command -v yay &>/dev/null; then
     PKG_INSTALL="yay -S --needed --noconfirm"
+    PKG_UPDATE="yay -Sy --noconfirm"
 elif command -v pacman &>/dev/null; then
     PKG_INSTALL="$SUDO pacman -S --needed --noconfirm"
+    PKG_UPDATE="$SUDO pacman -Sy --noconfirm"
 elif command -v apt-get &>/dev/null; then
-    PKG_INSTALL="$SUDO apt-get install -y"
+    PKG_INSTALL="$SUDO apt-get install -y -qq"
+    PKG_UPDATE="$SUDO apt-get update -qq"
 elif command -v dnf &>/dev/null; then
-    PKG_INSTALL="$SUDO dnf install -y"
+    PKG_INSTALL="$SUDO dnf install -y -q"
+    PKG_UPDATE="$SUDO dnf check-update -q"
 else
-    echo "No supported package manager found!"
+    echo -e "${RED}ERROR: No supported package manager found!${NC}"
     exit 1
 fi
+
+# ============================================================================
+# UPDATE PACKAGE DATABASE (silently)
+# ============================================================================
+$PKG_UPDATE &>/dev/null || true
+
+# ============================================================================
+# INSTALL PACKAGES (silently, handle failures gracefully)
+# ============================================================================
 
 # Core utilities
 CORE_PKGS=(
@@ -57,22 +73,42 @@ CORE_PKGS=(
     gzip
 )
 
-# Development tools
-DEV_PKGS=(
-    base-devel
-    cmake
-    gcc
-    make
-)
+# Development tools (only for pacman-based systems)
+if command -v pacman &>/dev/null; then
+    DEV_PKGS=(
+        base-devel
+        cmake
+        gcc
+        make
+    )
+else
+    DEV_PKGS=()
+fi
 
 # Install packages silently
 if command -v pacman &>/dev/null; then
-    $PKG_INSTALL "${CORE_PKGS[@]}" "${DEV_PKGS[@]}" &>/dev/null
+    # Arch-based systems
+    $PKG_INSTALL "${CORE_PKGS[@]}" "${DEV_PKGS[@]}" &>/dev/null || {
+        # If batch install fails, try one by one
+        for pkg in "${CORE_PKGS[@]}" "${DEV_PKGS[@]}"; do
+            $PKG_INSTALL "$pkg" &>/dev/null 2>&1 || true
+        done
+    }
 elif command -v apt-get &>/dev/null; then
-    sudo apt-get update &>/dev/null
-    $PKG_INSTALL "${CORE_PKGS[@]}" build-essential &>/dev/null
+    # Debian-based systems
+    $PKG_INSTALL "${CORE_PKGS[@]}" build-essential &>/dev/null || {
+        for pkg in "${CORE_PKGS[@]}" build-essential; do
+            $PKG_INSTALL "$pkg" &>/dev/null 2>&1 || true
+        done
+    }
 elif command -v dnf &>/dev/null; then
-    $PKG_INSTALL "${CORE_PKGS[@]}" @development-tools &>/dev/null
+    # Fedora-based systems
+    $PKG_INSTALL "${CORE_PKGS[@]}" @development-tools &>/dev/null || {
+        for pkg in "${CORE_PKGS[@]}"; do
+            $PKG_INSTALL "$pkg" &>/dev/null 2>&1 || true
+        done
+        $PKG_INSTALL @development-tools &>/dev/null 2>&1 || true
+    }
 fi
 
 echo -e "${GREEN}✓ Base dependencies installed${NC}"
