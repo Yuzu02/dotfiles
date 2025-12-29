@@ -17,6 +17,7 @@
 
 [![WSL2](https://img.shields.io/badge/WSL2-0078D4?style=for-the-badge&logo=windows-terminal&logoColor=white)](https://docs.microsoft.com/en-us/windows/wsl/)
 [![Nix](https://img.shields.io/badge/Nix-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org/)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-View%20Wiki-0ea5ff?style=for-the-badge)](https://deepwiki.com/Yuzu02/dotfiles)
 [![Home Manager](https://img.shields.io/badge/Home_Manager-41454A?style=for-the-badge&logo=nixos&logoColor=white)](https://nix-community.github.io/home-manager/)
 
 [![Chezmoi](https://img.shields.io/badge/Chezmoi-1C1C1C?style=for-the-badge&logo=git&logoColor=white)](https://chezmoi.io/)
