@@ -398,6 +398,17 @@ echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━�
 # Ensure PATH includes common locations
 export PATH="$HOME/.local/bin:/usr/local/bin:$PATH"
 
+# Provide non-interactive defaults so templates don't prompt during continuation
+# Prefer any existing CHEZMOI_* env vars (for CI/manual overrides), otherwise
+# fall back to sensible defaults derived from the GitHub username placeholder.
+export CHEZMOI_GITHUB_USER="__GITHUB_USER_PLACEHOLDER__"
+export CHEZMOI_EMAIL="${CHEZMOI_EMAIL:-${CHEZMOI_GITHUB_USER}@localhost}"
+export CHEZMOI_NAME="${CHEZMOI_NAME:-${CHEZMOI_GITHUB_USER}}"
+
+# Also export these as plain variables used by some scripts
+GITHUB_USER="$CHEZMOI_GITHUB_USER"
+
+
 # Source Nix if available
 for profile in \
     "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
@@ -411,10 +422,11 @@ done
 GITHUB_USER="__GITHUB_USER_PLACEHOLDER__"
 
 if command -v chezmoi &>/dev/null; then
-    echo -e "${BLUE}[INFO]${NC} Running chezmoi init --apply $GITHUB_USER"
+    echo -e "${BLUE}[INFO]${NC} Running non-interactive chezmoi init --apply $GITHUB_USER"
     chezmoi init --apply "$GITHUB_USER"
 else
-    echo -e "${BLUE}[INFO]${NC} Installing chezmoi and applying dotfiles..."
+    echo -e "${BLUE}[INFO]${NC} Installing chezmoi and applying dotfiles (non-interactive)..."
+    # Run installer which will place chezmoi in PATH, then re-run init using our env defaults
     sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply "$GITHUB_USER"
 fi
 
