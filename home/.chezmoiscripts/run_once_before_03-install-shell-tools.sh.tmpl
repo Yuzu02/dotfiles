@@ -1,0 +1,62 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 03-INSTALL-SHELL-TOOLS
+# Modern shell tools: zsh, starship, zoxide, atuin, fzf, direnv
+# ==============================================================================
+
+set -euo pipefail
+echo -e "\033[0;32m>>>>> Installing shell tools <<<<<\033[0m"
+
+# Detect package manager
+if command -v paru &>/dev/null; then
+    PKG_INSTALL="paru -S --needed --noconfirm"
+elif command -v yay &>/dev/null; then
+    PKG_INSTALL="yay -S --needed --noconfirm"
+elif command -v pacman &>/dev/null; then
+    PKG_INSTALL="sudo pacman -S --needed --noconfirm"
+else
+    echo "Using Nix for shell tools..."
+    PKG_INSTALL=""
+fi
+
+SHELL_PKGS=(
+    zsh
+    starship
+    zoxide
+    atuin
+    fzf
+    direnv
+    carapace-bin
+)
+
+if [ -n "$PKG_INSTALL" ]; then
+    $PKG_INSTALL "${SHELL_PKGS[@]}" || true
+fi
+
+# Install Oh My Zsh if not present
+if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    echo "Installing Oh My Zsh..."
+    sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+fi
+
+# Install Zsh plugins
+ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
+
+# zsh-autosuggestions
+if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
+    git clone https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions"
+fi
+
+# zsh-syntax-highlighting
+if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
+    git clone https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting"
+fi
+
+# you-should-use
+if [ ! -d "$ZSH_CUSTOM/plugins/you-should-use" ]; then
+    git clone https://github.com/MichaelAquilina/zsh-you-should-use.git "$ZSH_CUSTOM/plugins/you-should-use"
+fi
+
+echo -e "\033[0;32m>>>>> Shell tools installed <<<<<\033[0m"
+{{ end -}}

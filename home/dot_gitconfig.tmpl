@@ -1,0 +1,253 @@
+# =============================================================================
+# Git Configuration - {{ .name }} (WSL/Arch Optimized 2025)
+# Managed by chezmoi
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# User Identity & Signing
+# -----------------------------------------------------------------------------
+[user]
+    name = {{ .name }}
+    email = {{ .email }}
+    signingkey = ~/.ssh/yuzu_signing_key.pub
+
+[gpg]
+    format = ssh
+
+[gpg "ssh"]
+    allowedSignersFile = ~/.ssh/allowed_signers
+
+[commit]
+    gpgsign = true
+    verbose = true
+
+[tag]
+    gpgsign = true
+    sort = -taggerdate
+
+# -----------------------------------------------------------------------------
+# WSL Integration
+# -----------------------------------------------------------------------------
+{{- if .is_wsl }}
+[credential]
+    helper = "/mnt/c/Program\\ Files/Git/mingw64/bin/git-credential-manager.exe"
+{{- end }}
+
+# -----------------------------------------------------------------------------
+# Core Settings
+# -----------------------------------------------------------------------------
+[core]
+    editor = nvim
+    autocrlf = false
+    compression = 9
+    fsmonitor = true
+    symlinks = true
+    untrackedCache = true
+    commitGraph = true
+    ignorecase = false
+    preloadindex = true
+    whitespace = error
+    pager = delta
+
+[init]
+    defaultBranch = main
+
+[index]
+    threads = true
+    version = 4
+
+[log]
+    follow = true
+    date = relative
+    abbrevCommit = true
+    decorate = auto
+
+# -----------------------------------------------------------------------------
+# Smart Workflow
+# -----------------------------------------------------------------------------
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[help]
+    autocorrect = prompt
+
+[column]
+    ui = auto
+
+[protocol]
+    version = 2
+
+[feature]
+    manyFiles = true
+
+[gc]
+    auto = 256
+
+[ssh]
+    variant = ssh
+
+# -----------------------------------------------------------------------------
+# Behavior
+# -----------------------------------------------------------------------------
+[advice]
+    detachedHead = false
+    statusHints = false
+    pushUpdateRejected = false
+
+[fetch]
+    prune = true
+    pruneTags = true
+    parallel = 0
+    all = true
+
+[pull]
+    rebase = true
+
+[push]
+    default = current
+    autoSetupRemote = true
+
+[branch]
+    autoSetupMerge = always
+
+[checkout]
+    workers = 0
+    thresholdForParallelism = 100
+
+[submodule]
+    fetchJobs = 0
+    recurse = true
+
+# -----------------------------------------------------------------------------
+# Diff & Merge
+# -----------------------------------------------------------------------------
+[diff]
+    algorithm = histogram
+    colorMoved = default
+    tool = vscode
+    submodule = log
+
+[difftool "vscode"]
+    cmd = code --wait --diff $LOCAL $REMOTE
+
+[merge]
+    conflictstyle = zdiff3
+    tool = vscode
+    autoStash = true
+    ff = false
+    guitool = vscode
+
+[mergetool "vscode"]
+    cmd = code --wait $MERGED
+
+# Delta configuration
+[delta]
+    navigate = true
+    line-numbers = true
+    side-by-side = true
+    syntax-theme = Catppuccin Mocha
+    features = decorations
+
+[maintenance]
+    auto = true
+    strategy = incremental
+
+# -----------------------------------------------------------------------------
+# Security
+# -----------------------------------------------------------------------------
+[transfer]
+    fsckobjects = true
+
+[receive]
+    fsckObjects = true
+
+# -----------------------------------------------------------------------------
+# Aliases
+# -----------------------------------------------------------------------------
+[alias]
+    # Status
+    s = status -sb
+    st = status
+    
+    # Add
+    a = add
+    aa = add --all
+    ap = add --patch
+    
+    # Commit
+    c = commit -v
+    cm = commit -m
+    ca = commit --amend
+    can = commit --amend --no-edit
+    
+    # Branch
+    b = branch
+    ba = branch -a
+    bd = branch -d
+    bD = branch -D
+    
+    # Checkout
+    co = checkout
+    cob = checkout -b
+    com = checkout main
+    
+    # Push/Pull
+    p = push
+    pf = push --force-with-lease
+    pl = pull
+    pr = pull --rebase
+    
+    # Log
+    l = log --oneline --decorate --graph
+    la = log --oneline --decorate --graph --all
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+    
+    # Diff
+    d = diff
+    ds = diff --staged
+    
+    # Stash
+    stl = stash list
+    stp = stash pop
+    sta = stash apply
+    std = stash drop
+    
+    # Reset
+    undo = reset --soft HEAD~1
+    unstage = reset HEAD --
+    discard = checkout --
+    
+    # Maintenance
+    cleanup = !git fetch -p && git branch -vv | grep 'origin/.*: gone]' | awk '{print $1}' | xargs git branch -D
+    sync = !git fetch --all --prune && git pull --rebase
+    
+    # Info
+    aliases = config --get-regexp alias
+    contributors = shortlog -sn --no-merges
+    last = log -1 HEAD --format=format:'%Cred%H%Creset - %Cgreen%s%Creset %n%Cblue%an <%ae>%Creset @ %Cgreen%aD%Creset'
+
+# -----------------------------------------------------------------------------
+# URL Shortcuts
+# -----------------------------------------------------------------------------
+[url "git@github.com:"]
+    insteadOf = gh:
+
+[url "git@github.com:{{ .github_user }}/"]
+    insteadOf = me:
+
+# -----------------------------------------------------------------------------
+# Color Configuration
+# -----------------------------------------------------------------------------
+[color "branch"]
+    current = yellow reverse
+    local = yellow
+    remote = green
+    upstream = cyan
+    plain = white
+
+[color.decorate]
+    HEAD = red bold
+    branch = green bold
+    remoteBranch = cyan bold
+    tag = magenta bold

@@ -1,0 +1,28 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 02-INSTALL-NIX
+# Nix package manager with flakes support
+# ==============================================================================
+
+set -euo pipefail
+
+# Skip if already installed
+if command -v nix &>/dev/null; then
+    echo "Nix already installed: $(nix --version)"
+    exit 0
+fi
+
+echo -e "\033[0;32m>>>>> Installing Nix with Determinate Installer <<<<<\033[0m"
+
+# Use Determinate Systems installer (recommended)
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
+
+# Source nix profile
+if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
+    . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+
+echo -e "\033[0;32m>>>>> Nix installation complete <<<<<\033[0m"
+echo "Please restart your shell or run: source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+{{ end -}}

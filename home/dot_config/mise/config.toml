@@ -1,0 +1,19 @@
+# ============================================================================
+# MISE CONFIGURATION
+# Development tool version manager
+# ============================================================================
+
+[settings]
+experimental = true
+verbose = false
+jobs = 4
+
+[tools]
+bun = "latest"
+node = "lts"
+usage = "latest"
+uv = "latest"
+
+[env]
+# Global environment variables
+_.path = ["$HOME/.local/bin"]

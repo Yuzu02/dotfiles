@@ -1,0 +1,92 @@
+# ============================================================================
+# ATUIN CONFIGURATION
+# Shell history sync and search
+# ============================================================================
+
+## Database location
+# db_path = "~/.local/share/atuin/history.db"
+
+## Key location
+# key_path = "~/.local/share/atuin/key"
+
+## Session location
+# session_path = "~/.local/share/atuin/session"
+
+## Date format
+# dialect = "us"
+
+## Timezone
+# timezone = "local"
+
+## Enable automatic sync
+auto_sync = true
+
+## Check for updates
+update_check = true
+
+## Sync server address
+# sync_address = "https://api.atuin.sh"
+
+## Sync frequency
+sync_frequency = "5m"
+
+## Search mode: prefix, fulltext, fuzzy, skim
+search_mode = "fuzzy"
+
+## Filter mode: global, host, session, directory, workspace
+filter_mode = "global"
+
+## Enable workspace filtering
+workspaces = true
+
+## Style: auto, full, compact
+style = "auto"
+
+## Inline height (0 = fullscreen)
+inline_height = 0
+
+## Invert UI (search bar at top)
+invert = false
+
+## Show command preview
+show_preview = true
+
+## Exit mode: return-original, return-query
+exit_mode = "return-original"
+
+## Word jump mode: emacs, subl
+word_jump_mode = "emacs"
+
+## Context lines when scrolling
+scroll_context_lines = 1
+
+## Show help in UI
+show_help = true
+
+## Show tabs in UI
+show_tabs = true
+
+## Enter accepts selection
+enter_accept = false
+
+## Keymap mode: auto, emacs, vim-normal, vim-insert
+keymap_mode = "auto"
+
+[stats]
+## Commands to exclude from stats
+common_subcommands = [
+  "cargo",
+  "go",
+  "git",
+  "npm",
+  "yarn",
+  "pnpm",
+  "bun",
+  "docker",
+  "kubectl",
+]
+
+[keys]
+## Key bindings (atuin-specific)
+# scroll_up = "alt-k"
+# scroll_down = "alt-j"

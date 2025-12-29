@@ -1,0 +1,61 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 04-INSTALL-MODERN-CLI
+# Modern CLI replacements: eza, bat, ripgrep, fd, delta, btop, etc.
+# ==============================================================================
+
+set -euo pipefail
+echo -e "\033[0;32m>>>>> Installing modern CLI tools <<<<<\033[0m"
+
+# Detect package manager
+if command -v paru &>/dev/null; then
+    PKG_INSTALL="paru -S --needed --noconfirm"
+elif command -v yay &>/dev/null; then
+    PKG_INSTALL="yay -S --needed --noconfirm"
+elif command -v pacman &>/dev/null; then
+    PKG_INSTALL="sudo pacman -S --needed --noconfirm"
+else
+    PKG_INSTALL=""
+fi
+
+# Modern CLI replacements
+CLI_PKGS=(
+    # File operations
+    eza         # ls replacement
+    bat         # cat replacement
+    ripgrep     # grep replacement
+    fd          # find replacement
+    
+    # System monitoring
+    btop        # top replacement
+    dust        # du replacement
+    duf         # df replacement
+    procs       # ps replacement
+    
+    # Git enhancements
+    git-delta   # diff viewer
+    lazygit     # TUI git client
+    
+    # File management
+    yazi        # TUI file manager
+    zellij      # terminal multiplexer
+    
+    # Development
+    neovim      # editor
+    mise        # dev tool manager
+)
+
+if [ -n "$PKG_INSTALL" ]; then
+    $PKG_INSTALL "${CLI_PKGS[@]}" || true
+fi
+
+# Install fastfetch
+if ! command -v fastfetch &>/dev/null; then
+    if [ -n "$PKG_INSTALL" ]; then
+        $PKG_INSTALL fastfetch || true
+    fi
+fi
+
+echo -e "\033[0;32m>>>>> Modern CLI tools installed <<<<<\033[0m"
+{{ end -}}

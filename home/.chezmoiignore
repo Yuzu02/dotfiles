@@ -1,0 +1,64 @@
+# ============================================================================
+
+# CHEZMOI IGNORE FILE
+
+# Files/folders to ignore based on OS and environment
+
+# ============================================================================
+
+# README and documentation
+
+README.md
+LICENSE
+docs/
+
+# OS-specific ignores
+
+{{- if ne .chezmoi.os "linux" }}
+.config/fontconfig/
+.config/systemd/
+{{- end }}
+
+{{- if ne .chezmoi.os "darwin" }}
+Library/
+.config/karabiner/
+{{- end }}
+
+{{- if ne .chezmoi.os "windows" }}
+AppData/
+Documents/PowerShell/
+{{- end }}
+
+# WSL-specific
+
+{{ if not (get .chezmoi "is_wsl" | default false) }}
+.wslconfig
+{{ end }}
+
+# Development environments
+
+{{ if get . "is_codespaces" | default false }}
+.config/btop/
+.config/fastfetch/
+{{ end }}
+
+# Temporary and generated files
+
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+.directory
+
+# Package manager locks (managed separately)
+
+package-lock.json
+yarn.lock
+bun.lockb
+Cargo.lock
+
+# Local overrides (not tracked)
+
+*.local
+*.local.*

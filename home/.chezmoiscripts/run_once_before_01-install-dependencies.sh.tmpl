@@ -1,0 +1,70 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 01-INSTALL-DEPENDENCIES
+# Essential system packages for Arch/WSL
+# ==============================================================================
+
+set -euo pipefail
+echo -e "\033[0;32m>>>>> Installing base dependencies <<<<<\033[0m"
+
+# Detect package manager
+if command -v paru &>/dev/null; then
+    PKG_MGR="paru"
+    PKG_INSTALL="paru -S --needed --noconfirm"
+elif command -v yay &>/dev/null; then
+    PKG_MGR="yay"
+    PKG_INSTALL="yay -S --needed --noconfirm"
+elif command -v pacman &>/dev/null; then
+    PKG_MGR="pacman"
+    PKG_INSTALL="sudo pacman -S --needed --noconfirm"
+elif command -v apt-get &>/dev/null; then
+    PKG_MGR="apt"
+    PKG_INSTALL="sudo apt-get install -y"
+elif command -v dnf &>/dev/null; then
+    PKG_MGR="dnf"
+    PKG_INSTALL="sudo dnf install -y"
+else
+    echo "No supported package manager found!"
+    exit 1
+fi
+
+echo "Using package manager: $PKG_MGR"
+
+# Core utilities
+CORE_PKGS=(
+    git
+    curl
+    wget
+    unzip
+    tar
+    gzip
+)
+
+# Development tools
+DEV_PKGS=(
+    base-devel
+    cmake
+    gcc
+    make
+)
+
+# Install based on package manager
+case "$PKG_MGR" in
+    paru|yay|pacman)
+        # Arch Linux packages
+        $PKG_INSTALL "${CORE_PKGS[@]}" "${DEV_PKGS[@]}"
+        ;;
+    apt)
+        # Debian/Ubuntu packages
+        sudo apt-get update
+        $PKG_INSTALL "${CORE_PKGS[@]}" build-essential
+        ;;
+    dnf)
+        # Fedora packages
+        $PKG_INSTALL "${CORE_PKGS[@]}" @development-tools
+        ;;
+esac
+
+echo -e "\033[0;32m>>>>> Base dependencies installed <<<<<\033[0m"
+{{ end -}}

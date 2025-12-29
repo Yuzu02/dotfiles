@@ -1,0 +1,32 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 05-INSTALL-DEV-TOOLS
+# Development tools: mise-managed languages (Node, Bun, Python/uv)
+# ==============================================================================
+
+set -euo pipefail
+echo -e "\033[0;32m>>>>> Setting up development tools with mise <<<<<\033[0m"
+
+# Ensure mise is installed
+if ! command -v mise &>/dev/null; then
+    echo "Installing mise..."
+    curl https://mise.run | sh
+fi
+
+# Activate mise
+eval "$(mise activate bash)"
+
+# Install configured tools
+if [ -f "$HOME/.config/mise/config.toml" ]; then
+    echo "Installing tools from mise config..."
+    mise install -y || true
+fi
+
+# Install global tools
+mise use -g bun@latest || true
+mise use -g node@lts || true
+mise use -g uv@latest || true
+
+echo -e "\033[0;32m>>>>> Development tools configured <<<<<\033[0m"
+{{ end -}}

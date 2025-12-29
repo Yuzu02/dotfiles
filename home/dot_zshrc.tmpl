@@ -1,0 +1,371 @@
+# ~/.zshrc - Ultimate ZSH Configuration (December 2025)
+# Optimized for maximum productivity with modern tools and workflows
+# Managed by chezmoi - https://github.com/{{ .github_user }}/dotfiles
+# Documentation: https://zsh.sourceforge.io/Doc/
+
+# ========================================================================
+# 0. PERFORMANCE OPTIMIZATION
+# ========================================================================
+# Measure startup time: time zsh -i -c exit
+# Profile startup: zsh -xv 2>&1 | less
+
+# Fast completion cache (regenerate daily)
+autoload -Uz compinit
+if [[ -n ~/.zcompdump(#qN.mh+24) ]]; then
+  compinit
+else
+  compinit -C
+fi
+
+# Disable unnecessary checks
+DISABLE_AUTO_UPDATE="true"
+DISABLE_MAGIC_FUNCTIONS="true"
+DISABLE_UNTRACKED_FILES_DIRTY="true"
+
+# ========================================================================
+# 1. PATH & ENVIRONMENT VARIABLES
+# ========================================================================
+export PATH=$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH
+export ZSH="$HOME/.oh-my-zsh"
+export PATH="/usr/sbin:/usr/local/sbin:$PATH"
+
+# Default editors
+export EDITOR='nvim'
+export VISUAL='nvim'
+export PAGER='bat'
+
+{{- if .is_wsl }}
+# WSL GPU Acceleration
+export GALLIUM_DRIVER=d3d12
+export LIBVA_DRIVER_NAME=d3d12
+{{- end }}
+
+# Development paths
+export PROJECTS="$HOME/projects"
+export REPOS="$HOME/repos"
+export WORKSPACE="$HOME/workspace"
+
+# ========================================================================
+# 2. OH MY ZSH PLUGINS
+# ========================================================================
+plugins=(
+    # Version Control
+    git                  # Git aliases and functions
+    github               # GitHub CLI helpers
+    
+    # Cloud & Infrastructure
+    docker               # Docker autocomplete
+    docker-compose       # Docker Compose helpers
+    kubectl              # Kubernetes autocomplete
+    helm                 # Helm completion
+    
+    # Languages & Package Managers
+    node                 # Node.js helpers
+    npm                  # NPM completion
+    python               # Python helpers
+    pip                  # Pip completion
+    rust                 # Rust helpers
+    
+    # Productivity Tools
+    sudo                 # Press ESC twice to add sudo
+    extract              # Universal archive extractor (x command)
+    command-not-found    # Suggests packages for missing commands
+    copyfile             # Copy file contents to clipboard
+    copypath             # Copy current path to clipboard
+    dirhistory           # Alt+Left/Right for directory history
+    
+    # Community Plugins (install separately)
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    you-should-use       # Reminds you of aliases
+)
+
+source $ZSH/oh-my-zsh.sh
+
+# ========================================================================
+# 3. AUTOSUGGESTIONS & SYNTAX HIGHLIGHTING CONFIG
+# ========================================================================
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#666666"
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
+ZSH_AUTOSUGGEST_USE_ASYNC=1
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+
+# ========================================================================
+# 4. MODERN TOOL INITIALIZATION
+# ========================================================================
+# Starship prompt (fastest, modern)
+eval "$(starship init zsh)"
+
+# Zoxide (smart cd replacement)
+eval "$(zoxide init zsh)"
+
+# Atuin (better history with fuzzy search & sync)
+eval "$(atuin init zsh --disable-up-arrow)"
+
+# mise (modern asdf replacement)
+eval "$(mise activate zsh)"
+
+# direnv (auto-load project environments)
+eval "$(direnv hook zsh)"
+
+# FZF (fuzzy finder integration)
+source <(fzf --zsh)
+
+# Carapace (universal completions)
+source <(carapace _carapace zsh)
+
+# ========================================================================
+# 5. FZF CONFIGURATION (Enhanced)
+# ========================================================================
+export FZF_DEFAULT_COMMAND='fd --type f --hidden --follow --exclude .git'
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_ALT_C_COMMAND='fd --type d --hidden --follow --exclude .git'
+
+# Default options with Catppuccin theme
+export FZF_DEFAULT_OPTS='
+  --height 60%
+  --layout=reverse
+  --border rounded
+  --info=inline
+  --margin=1
+  --padding=1
+  --color=bg+:#363a4f,bg:#24273a,spinner:#f4dbd6,hl:#ed8796
+  --color=fg:#cad3f5,header:#ed8796,info:#c6a0f6,pointer:#f4dbd6
+  --color=marker:#f4dbd6,fg+:#cad3f5,prompt:#c6a0f6,hl+:#ed8796
+  --bind "ctrl-/:toggle-preview"
+  --bind "ctrl-a:select-all"
+  --bind "ctrl-d:deselect-all"
+{{- if .is_wsl }}
+  --bind "ctrl-y:execute-silent(echo -n {} | clip.exe)+abort"
+{{- else }}
+  --bind "ctrl-y:execute-silent(echo -n {} | xclip -selection clipboard)+abort"
+{{- end }}
+'
+
+# File preview with bat
+export FZF_CTRL_T_OPTS="
+  --preview 'bat --color=always --style=numbers --line-range=:500 {} 2>/dev/null || cat {}'
+  --preview-window 'right:60%:wrap'
+  --bind 'ctrl-/:change-preview-window(down|hidden|)'
+"
+
+# Directory preview with eza
+export FZF_ALT_C_OPTS="
+  --preview 'eza --tree --color=always --level=2 --icons {} | head -200'
+"
+
+# History preview
+export FZF_CTRL_R_OPTS="
+  --preview 'echo {}'
+  --preview-window 'down:3:wrap'
+  --color header:italic
+  --header 'Press CTRL-Y to copy command'
+"
+
+# ========================================================================
+# 6. MODERN CLI ALIASES (Rust replacements)
+# ========================================================================
+# File operations
+alias ls='eza --icons --group-directories-first'
+alias ll='eza -l --icons --group-directories-first --git --header'
+alias la='eza -la --icons --group-directories-first --git --header'
+alias lt='eza --tree --level=2 --icons'
+alias lt3='eza --tree --level=3 --icons'
+alias lta='eza --tree --level=2 --icons -a'
+alias cat='bat --style=plain'
+alias catn='bat --style=numbers'
+alias grep='rg'
+alias find='fd'
+
+# Navigation
+alias cd='z'              # Use zoxide
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias .....='cd ../../../..'
+
+# System monitoring
+alias du='dust'
+alias df='duf'
+alias ps='procs'
+alias top='btop'
+
+# File management
+alias rm='rm -i'          # Interactive delete
+alias cp='cp -i'          # Interactive copy
+alias mv='mv -i'          # Interactive move
+
+# ========================================================================
+# 7. GIT ALIASES (Enhanced)
+# ========================================================================
+alias g='git'
+alias gs='git status -sb'
+alias ga='git add'
+alias gaa='git add --all'
+alias gc='git commit -v'
+alias gcm='git commit -m'
+alias gca='git commit --amend'
+alias gcan='git commit --amend --no-edit'
+alias gb='git branch'
+alias gba='git branch -a'
+alias gbd='git branch -d'
+alias gbD='git branch -D'
+alias gco='git checkout'
+alias gcob='git checkout -b'
+alias gcom='git checkout main || git checkout master'
+alias gp='git push'
+alias gpf='git push --force-with-lease'
+alias gpl='git pull'
+alias gpr='git pull --rebase'
+alias gf='git fetch'
+alias gfa='git fetch --all'
+alias gl='git log --oneline --decorate --graph'
+alias gla='git log --oneline --decorate --graph --all'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gdd='git diff | delta'
+alias gst='git stash'
+alias gstp='git stash pop'
+alias gundo='git reset --soft HEAD~1'
+alias lg='lazygit'
+
+# ========================================================================
+# 8. DOCKER ALIASES
+# ========================================================================
+alias d='docker'
+alias dps='docker ps'
+alias dpsa='docker ps -a'
+alias di='docker images'
+alias dc='docker compose'
+alias dcu='docker compose up -d'
+alias dcd='docker compose down'
+alias dcr='docker compose restart'
+alias dcl='docker compose logs -f'
+
+# ========================================================================
+# 9. DEVELOPMENT ALIASES
+# ========================================================================
+# Bun
+alias b='bun'
+alias bi='bun install'
+alias ba='bun add'
+alias br='bun run'
+alias brd='bun run dev'
+
+# Node/npm
+alias n='npm'
+alias ni='npm install'
+alias nrd='npm run dev'
+
+# ========================================================================
+# 10. UTILITY ALIASES
+# ========================================================================
+alias v='nvim'
+alias vim='nvim'
+alias y='yazi'
+alias zj='zellij'
+alias c='clear'
+alias x='exit'
+alias reload='source ~/.zshrc'
+alias zshconfig='nvim ~/.zshrc'
+
+{{- if .is_wsl }}
+alias copy='clip.exe'
+alias pbcopy='clip.exe'
+{{- end }}
+
+# ========================================================================
+# 11. GLOBAL ALIASES
+# ========================================================================
+alias -g G='| rg'
+alias -g L='| less'
+alias -g H='| head'
+alias -g J='| jq'
+alias -g NE='2> /dev/null'
+
+# ========================================================================
+# 12. FUNCTIONS
+# ========================================================================
+
+# Yazi wrapper - Changes directory on exit
+function y() {
+    local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
+    yazi "$@" --cwd-file="$tmp"
+    if cwd="$(cat -- "$tmp")" && [ -n "$cwd" ] && [ "$cwd" != "$PWD" ]; then
+        builtin cd -- "$cwd"
+    fi
+    rm -f -- "$tmp"
+}
+
+# Make directory and cd into it
+function mkcd() { mkdir -p "$1" && cd "$1" }
+
+# Interactive cd with fzf
+function fcd() {
+    local dir
+    dir=$(fd --type d --hidden --follow --exclude .git 2>/dev/null | \
+        fzf --preview 'eza --tree --color=always --level=2 --icons {}') && cd "$dir"
+}
+
+# Interactive file opener with fzf
+function fopen() {
+    local file
+    file=$(fzf --preview 'bat --color=always --style=numbers {}') && ${EDITOR:-nvim} "$file"
+}
+
+# Interactive ripgrep with fzf
+function frg() {
+    rg --color=always --line-number --no-heading --smart-case "${*:-}" |
+        fzf --ansi \
+            --delimiter : \
+            --preview 'bat --color=always {1} --highlight-line {2}' \
+            --preview-window 'up,60%,border-bottom,+{2}+3/3,~3' \
+            --bind 'enter:become(nvim {1} +{2})'
+}
+
+# Update all
+function update-all() {
+    echo "🚀 Updating system..."
+    {{- if eq .os "linux" }}
+    paru -Syu --noconfirm || sudo pacman -Syu --noconfirm
+    {{- end }}
+    mise upgrade
+    echo "✅ Done!"
+}
+
+# Quick HTTP server
+function serve() { python -m http.server "${1:-8000}" }
+
+# Weather
+function weather() { curl "wttr.in/${1:-Santo_Domingo}?format=v2" }
+
+# ========================================================================
+# 13. HISTORY CONFIGURATION
+# ========================================================================
+HISTFILE=~/.zsh_history
+HISTSIZE=50000
+SAVEHIST=50000
+setopt EXTENDED_HISTORY HIST_EXPIRE_DUPS_FIRST HIST_IGNORE_DUPS
+setopt HIST_FIND_NO_DUPS HIST_IGNORE_SPACE SHARE_HISTORY
+
+# ========================================================================
+# 14. DIRECTORY STACK
+# ========================================================================
+setopt AUTO_PUSHD PUSHD_IGNORE_DUPS PUSHD_SILENT
+alias d='dirs -v'
+for index ({1..5}) alias "$index"="cd -${index}"
+
+# ========================================================================
+# 15. WELCOME MESSAGE
+# ========================================================================
+command -v fastfetch &>/dev/null && fastfetch
+
+# ========================================================================
+# 16. LOCAL CUSTOMIZATIONS
+# ========================================================================
+[ -f ~/.zshrc.local ] && source ~/.zshrc.local
+
+# ========================================================================
+# END OF CONFIGURATION
+# ========================================================================

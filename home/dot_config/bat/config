@@ -1,0 +1,31 @@
+# ============================================================================
+
+# BAT CONFIGURATION
+
+# Cat replacement with syntax highlighting
+
+# ============================================================================
+
+# Theme (Catppuccin-compatible)
+
+--theme="OneHalfDark"
+
+# Style options
+
+--style=numbers,changes,header
+
+# Use italic text (if terminal supports it)
+
+--italic-text=always
+
+# Tab width
+
+--tabs=4
+
+# Paging behavior
+
+--paging=auto
+
+# Enable wrapping
+
+--wrap=auto
