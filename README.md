@@ -130,11 +130,25 @@ quadrantChart
 ### One-Line Bootstrap
 
 ```bash
-# 🔥 Fresh Arch/WSL install - works even as root without sudo!
+# 🔥 Fresh Arch/WSL install - fully automatic setup!
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Yuzu02
 ```
 
-> **Note:** This works on fresh Arch installations running as root. The scripts automatically detect the environment and handle sudo installation.
+> **✨ Fully Automatic:** Works on fresh Arch installations even as root! The script will automatically create a user, install sudo, and guide you to continue as that user.
+
+### What Happens Automatically
+
+| Step | Action |
+|:-----|:-------|
+| 1️⃣ | Detects if running as root on fresh Arch |
+| 2️⃣ | Initializes pacman keyring |
+| 3️⃣ | Installs sudo and base-devel |
+| 4️⃣ | Creates a regular user (uses your GitHub username) |
+| 5️⃣ | Configures sudo for wheel group |
+| 6️⃣ | Prompts you to switch to the new user |
+| 7️⃣ | Continue installation as regular user |
+
+> **Note:** If running as root, a user will be created with temporary password `changeme`. You'll be prompted to switch to that user to continue the installation.
 
 ### Manual Installation
 

@@ -7,22 +7,28 @@
 
 set -euo pipefail
 
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
 # Skip if already installed
 if command -v nix &>/dev/null; then
-    echo "Nix already installed: $(nix --version)"
+    echo -e "${GREEN}✓ Nix already installed${NC}"
     exit 0
 fi
 
-echo -e "\033[0;32m>>>>> Installing Nix with Determinate Installer <<<<<\033[0m"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  ❄️  Installing Nix Package Manager${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Use Determinate Systems installer (recommended)
-curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install --no-confirm
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix 2>/dev/null | sh -s -- install --no-confirm &>/dev/null
 
 # Source nix profile
 if [ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]; then
     . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
 fi
 
-echo -e "\033[0;32m>>>>> Nix installation complete <<<<<\033[0m"
-echo "Please restart your shell or run: source /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh"
+echo -e "${GREEN}✓ Nix installed successfully${NC}"
 {{ end -}}

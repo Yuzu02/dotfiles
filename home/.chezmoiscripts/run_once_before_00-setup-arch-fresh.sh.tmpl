@@ -60,12 +60,14 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
     
     # 1. Initialize pacman keyring
     log_info "Initializing pacman keyring..."
-    pacman-key --init 2>/dev/null || true
-    pacman-key --populate archlinux 2>/dev/null || true
+    pacman-key --init &>/dev/null || true
+    pacman-key --populate archlinux &>/dev/null || true
+    log_success "Pacman keyring initialized"
     
     # 2. Update system
     log_info "Updating system packages..."
-    pacman -Syu --noconfirm
+    pacman -Syu --noconfirm &>/dev/null
+    log_success "System updated"
     
     # 3. Install essential packages
     log_info "Installing essential packages..."
@@ -84,7 +86,7 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
         tar \
         gzip \
         xdg-utils \
-        less
+        less &>/dev/null
     
     log_success "Essential packages installed"
     
@@ -96,20 +98,48 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
         log_success "Sudo configured for wheel group"
     fi
     
-    # 5. Check if user exists (from chezmoi config)
-    CURRENT_USER="{{ .chezmoi.username }}"
+    # 5. Create user automatically if running as root
+    CHEZMOI_USER="{{ .chezmoi.username }}"
+    GITHUB_USER="{{ .github_user }}"
     
-    if [ "$CURRENT_USER" = "root" ]; then
-        log_warn "Running as root user - please create a regular user after setup"
-        log_info "You can create a user with:"
-        echo -e "  ${YELLOW}useradd -m -G wheel -s /bin/zsh USERNAME${NC}"
-        echo -e "  ${YELLOW}passwd USERNAME${NC}"
+    if [ "$CHEZMOI_USER" = "root" ]; then
+        log_warn "Running as root - creating a regular user automatically"
+        
+        # Use github username as default username
+        if [ -n "$GITHUB_USER" ] && [ "$GITHUB_USER" != "root" ]; then
+            NEW_USER="$GITHUB_USER"
+        else
+            NEW_USER="yuzu"
+        fi
+        
+        # Create user if doesn't exist
+        if ! id "$NEW_USER" &>/dev/null 2>&1; then
+            log_info "Creating user: $NEW_USER"
+            useradd -m -G wheel -s /bin/bash "$NEW_USER"
+            
+            # Set a temporary password (user should change it)
+            echo "$NEW_USER:changeme" | chpasswd
+            log_warn "Temporary password set to 'changeme' - please change it after login!"
+            log_success "User $NEW_USER created"
+        else
+            log_info "User $NEW_USER already exists"
+        fi
+        
+        # Ensure user is in wheel group
+        if ! groups "$NEW_USER" | grep -q wheel; then
+            usermod -aG wheel "$NEW_USER"
+            log_success "Added $NEW_USER to wheel group"
+        fi
+        
+        # Create flag file to indicate we need to switch user
+        echo "$NEW_USER" > /tmp/.chezmoi-switch-user
+        
     else
         # Ensure user is in wheel group
-        if id "$CURRENT_USER" &>/dev/null; then
-            if ! groups "$CURRENT_USER" | grep -q wheel; then
-                usermod -aG wheel "$CURRENT_USER"
-                log_success "Added $CURRENT_USER to wheel group"
+        if id "$CHEZMOI_USER" &>/dev/null; then
+            if ! groups "$CHEZMOI_USER" | grep -q wheel; then
+                usermod -aG wheel "$CHEZMOI_USER"
+                log_success "Added $CHEZMOI_USER to wheel group"
             fi
         fi
     fi
@@ -118,7 +148,7 @@ if [ "$IS_ROOT" = true ] && [ "$IS_FRESH_ARCH" = true ]; then
     log_info "Configuring locales..."
     if ! grep -q "^en_US.UTF-8 UTF-8" /etc/locale.gen; then
         sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-        locale-gen
+        locale-gen &>/dev/null
     fi
     
     if [ ! -f /etc/locale.conf ]; then
@@ -154,6 +184,24 @@ EOF
     fi
     
     log_success "Fresh Arch Linux bootstrap complete!"
+    
+    # Check if we need to switch user
+    if [ -f /tmp/.chezmoi-switch-user ]; then
+        NEW_USER=$(cat /tmp/.chezmoi-switch-user)
+        rm -f /tmp/.chezmoi-switch-user
+        
+        log_info ""
+        log_info "Switching to user $NEW_USER to continue installation..."
+        log_info "Temporary password: changeme (please change after setup!)"
+        log_info ""
+        
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${YELLOW}  ⚠️  User created. Please switch and continue:${NC}"
+        echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+        echo -e "${CYAN}su - $NEW_USER${NC}"
+        echo -e "${CYAN}sh -c \"\$(curl -fsLS get.chezmoi.io)\" -- init --apply {{ .github_user }}${NC}"
+        exit 99
+    fi
 fi
 
 echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"

@@ -6,27 +6,33 @@
 # ==============================================================================
 
 set -euo pipefail
-echo -e "\033[0;32m>>>>> Setting up development tools with mise <<<<<\033[0m"
+
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  💻 Setting Up Development Tools${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # Ensure mise is installed
 if ! command -v mise &>/dev/null; then
-    echo "Installing mise..."
-    curl https://mise.run | sh
+    curl -s https://mise.run 2>/dev/null | sh 2>/dev/null
 fi
 
 # Activate mise
-eval "$(mise activate bash)"
+eval "$(mise activate bash)" 2>/dev/null || true
 
 # Install configured tools
 if [ -f "$HOME/.config/mise/config.toml" ]; then
-    echo "Installing tools from mise config..."
-    mise install -y || true
+    mise install -y &>/dev/null || true
 fi
 
 # Install global tools
-mise use -g bun@latest || true
-mise use -g node@lts || true
-mise use -g uv@latest || true
+mise use -g bun@latest &>/dev/null 2>&1 || true
+mise use -g node@lts &>/dev/null 2>&1 || true
+mise use -g uv@latest &>/dev/null 2>&1 || true
 
-echo -e "\033[0;32m>>>>> Development tools configured <<<<<\033[0m"
+echo -e "${GREEN}✓ Development tools configured${NC}"
 {{ end -}}

@@ -39,6 +39,11 @@ log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+# Check if running as root - will auto-create user
+if [ "$(id -u)" -eq 0 ]; then
+    log_warn "Running as root detected - user will be created automatically"
+fi
+
 # Detect OS
 detect_os() {
     if [ -f /etc/os-release ]; then

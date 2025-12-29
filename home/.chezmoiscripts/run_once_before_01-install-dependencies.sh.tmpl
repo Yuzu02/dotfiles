@@ -6,21 +6,25 @@
 # ==============================================================================
 
 set -euo pipefail
-echo -e "\033[0;32m>>>>> Installing base dependencies <<<<<\033[0m"
+
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  📦 Installing Base Dependencies${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ============================================================================
-# SUDO WRAPPER - Handle root user case (fresh Arch installs run as root)
+# SUDO WRAPPER
 # ============================================================================
 if [ "$(id -u)" -eq 0 ]; then
     SUDO=""
-    echo "Running as root - sudo not needed"
 else
     SUDO="sudo"
-    # Check if sudo is available
     if ! command -v sudo &>/dev/null; then
-        echo "ERROR: Not running as root and sudo is not installed!"
-        echo "Please run as root or install sudo first:"
-        echo "  su -c 'pacman -S sudo && echo \"%wheel ALL=(ALL:ALL) ALL\" > /etc/sudoers.d/wheel'"
+        echo -e "${RED}ERROR: Not running as root and sudo is not installed!${NC}"
         exit 1
     fi
 fi
@@ -29,26 +33,19 @@ fi
 # PACKAGE MANAGER DETECTION
 # ============================================================================
 if command -v paru &>/dev/null; then
-    PKG_MGR="paru"
     PKG_INSTALL="paru -S --needed --noconfirm"
 elif command -v yay &>/dev/null; then
-    PKG_MGR="yay"
     PKG_INSTALL="yay -S --needed --noconfirm"
 elif command -v pacman &>/dev/null; then
-    PKG_MGR="pacman"
     PKG_INSTALL="$SUDO pacman -S --needed --noconfirm"
 elif command -v apt-get &>/dev/null; then
-    PKG_MGR="apt"
     PKG_INSTALL="$SUDO apt-get install -y"
 elif command -v dnf &>/dev/null; then
-    PKG_MGR="dnf"
     PKG_INSTALL="$SUDO dnf install -y"
 else
     echo "No supported package manager found!"
     exit 1
 fi
-
-echo "Using package manager: $PKG_MGR"
 
 # Core utilities
 CORE_PKGS=(
@@ -68,22 +65,15 @@ DEV_PKGS=(
     make
 )
 
-# Install based on package manager
-case "$PKG_MGR" in
-    paru|yay|pacman)
-        # Arch Linux packages
-        $PKG_INSTALL "${CORE_PKGS[@]}" "${DEV_PKGS[@]}"
-        ;;
-    apt)
-        # Debian/Ubuntu packages
-        sudo apt-get update
-        $PKG_INSTALL "${CORE_PKGS[@]}" build-essential
-        ;;
-    dnf)
-        # Fedora packages
-        $PKG_INSTALL "${CORE_PKGS[@]}" @development-tools
-        ;;
-esac
+# Install packages silently
+if command -v pacman &>/dev/null; then
+    $PKG_INSTALL "${CORE_PKGS[@]}" "${DEV_PKGS[@]}" &>/dev/null
+elif command -v apt-get &>/dev/null; then
+    sudo apt-get update &>/dev/null
+    $PKG_INSTALL "${CORE_PKGS[@]}" build-essential &>/dev/null
+elif command -v dnf &>/dev/null; then
+    $PKG_INSTALL "${CORE_PKGS[@]}" @development-tools &>/dev/null
+fi
 
-echo -e "\033[0;32m>>>>> Base dependencies installed <<<<<\033[0m"
+echo -e "${GREEN}✓ Base dependencies installed${NC}"
 {{ end -}}

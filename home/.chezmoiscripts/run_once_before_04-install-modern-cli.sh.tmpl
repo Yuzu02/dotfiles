@@ -6,10 +6,18 @@
 # ==============================================================================
 
 set -euo pipefail
-echo -e "\033[0;32m>>>>> Installing modern CLI tools <<<<<\033[0m"
+
+# Colors
+BLUE='\033[0;34m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${BLUE}  ⚡ Installing Modern CLI Tools${NC}"
+echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ============================================================================
-# SUDO WRAPPER - Handle root user case
+# SUDO WRAPPER
 # ============================================================================
 if [ "$(id -u)" -eq 0 ]; then
     SUDO=""
@@ -32,32 +40,19 @@ fi
 
 # Modern CLI replacements
 CLI_PKGS=(
-    # File operations
-    eza         # ls replacement
-    bat         # cat replacement
-    ripgrep     # grep replacement
-    fd          # find replacement
-    
-    # System monitoring
-    btop        # top replacement
-    dust        # du replacement
-    duf         # df replacement
-    procs       # ps replacement
-    
-    # Git enhancements
-    git-delta   # diff viewer
-    lazygit     # TUI git client
-    
-    # File management
-    yazi        # TUI file manager
-    zellij      # terminal multiplexer
-    
-    # Development
-    neovim      # editor
-    mise        # dev tool manager
+    eza bat ripgrep fd
+    btop dust duf procs
+    git-delta lazygit
+    yazi zellij
+    neovim mise
 )
 
 if [ -n "$PKG_INSTALL" ]; then
+    $PKG_INSTALL "${CLI_PKGS[@]}" &>/dev/null
+fi
+
+echo -e "${GREEN}✓ Modern CLI tools installed${NC}"
+{{ end -}}
     $PKG_INSTALL "${CLI_PKGS[@]}" || true
 fi
 
