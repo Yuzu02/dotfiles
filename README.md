@@ -166,19 +166,12 @@ C4Context
     
     Person(user, "Developer", "Uses the development environment")
     
-    Enterprise_Boundary(wsl, "WSL2 Environment") {
-        System_Boundary(arch, "Arch Linux") {
-            System(chezmoi, "Chezmoi", "Dotfiles management & templating")
-            System(hm, "Home Manager", "Declarative user config")
-            SystemDb(nix, "Nix Store", "Immutable package store")
-        }
-        
-        System_Boundary(tools, "Tool Layer") {
-            System(mise, "mise", "Development tool manager")
-            System(shell, "Zsh + Starship", "Interactive shell")
-            System(cli, "Modern CLI", "eza, bat, ripgrep, fd")
-        }
-    }
+    System(chezmoi, "Chezmoi", "Dotfiles management & templating")
+    System(hm, "Home Manager", "Declarative user config")
+    SystemDb(nix, "Nix Store", "Immutable package store")
+    System(mise, "mise", "Development tool manager")
+    System(shell, "Zsh + Starship", "Interactive shell")
+    System(cli, "Modern CLI", "eza, bat, ripgrep, fd")
     
     System_Ext(github, "GitHub", "Dotfiles repository")
     System_Ext(nixpkgs, "Nixpkgs", "Package repository")
@@ -188,9 +181,7 @@ C4Context
     Rel(chezmoi, github, "Syncs from")
     Rel(hm, nix, "Manages")
     Rel(nix, nixpkgs, "Fetches from")
-    Rel(mise, tools, "Installs")
-    
-    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="1")
+    Rel(mise, cli, "Installs")
 ```
 
 ### Bootstrap Sequence
