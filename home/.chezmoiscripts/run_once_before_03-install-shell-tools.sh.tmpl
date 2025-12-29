@@ -38,15 +38,28 @@ SHELL_PKGS=(
     atuin
     fzf
     direnv
-    carapace-bin
+    carapace
 )
 
 if [ -n "$PKG_INSTALL" ]; then
-    $PKG_INSTALL "${SHELL_PKGS[@]}" || true
+    $PKG_INSTALL "${SHELL_PKGS[@]}" || {
+        echo "Some packages failed to install, continuing..."
+    }
 fi
 
 # Install Oh My Zsh if not present
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
+    # Ensure zsh is installed before running Oh My Zsh installer
+    if ! command -v zsh &>/dev/null; then
+        echo "Zsh not found, attempting to install..."
+        if [ -n "$PKG_INSTALL" ]; then
+            $PKG_INSTALL zsh || {
+                echo "Failed to install zsh, skipping Oh My Zsh installation"
+                exit 0
+            }
+        fi
+    fi
+    
     echo "Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 fi
