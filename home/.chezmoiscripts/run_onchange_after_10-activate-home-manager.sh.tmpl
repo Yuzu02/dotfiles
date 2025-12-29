@@ -1,0 +1,170 @@
+{{ if eq .chezmoi.os "linux" -}}
+#!/bin/bash
+# ==============================================================================
+# 10-ACTIVATE-HOME-MANAGER (Universal - 2025/2026 Best Practices)
+# Automatically builds and activates Home Manager configuration
+# Triggers on: flake.nix, home.nix, home-minimal.nix changes
+# ==============================================================================
+
+set -euo pipefail
+
+# Configuration hash (triggers re-run on changes)
+# flake.nix hash: {{ include "dot_config/home-manager/flake.nix" | sha256sum }}
+# home.nix hash: {{ include "dot_config/home-manager/home.nix" | sha256sum }}
+# home-minimal.nix hash: {{ include "dot_config/home-manager/home-minimal.nix" | sha256sum }}
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}  🏠 Home Manager Activation${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+# ==============================================================================
+# Check prerequisites
+# ==============================================================================
+
+# Source Nix environment if available
+for profile in \
+    "/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh" \
+    "/etc/profile.d/nix.sh" \
+    "$HOME/.nix-profile/etc/profile.d/nix.sh"
+do
+    if [ -e "$profile" ]; then
+        . "$profile"
+        break
+    fi
+done
+
+if ! command -v nix &>/dev/null; then
+    log_warn "Nix not installed - skipping Home Manager activation"
+    log_info "Run the Nix installation script first, then re-run chezmoi apply"
+    exit 0
+fi
+
+# Check if Home Manager config exists
+HM_CONFIG_DIR="$HOME/.config/home-manager"
+
+if [ ! -f "$HM_CONFIG_DIR/flake.nix" ]; then
+    log_warn "No Home Manager flake.nix found at $HM_CONFIG_DIR"
+    log_info "Home Manager configuration will be set up on next chezmoi apply"
+    exit 0
+fi
+
+# ==============================================================================
+# Determine configuration to use
+# ==============================================================================
+
+# Get current username
+CURRENT_USER="{{ .chezmoi.username }}"
+
+# Check for minimal mode
+MINIMAL_MODE=false
+{{ if or .is_codespaces .is_devcontainer -}}
+MINIMAL_MODE=true
+{{ end -}}
+
+if [ "$MINIMAL_MODE" = "true" ]; then
+    HM_CONFIG_NAME="${CURRENT_USER}-minimal"
+    log_info "Using minimal configuration: $HM_CONFIG_NAME"
+else
+    HM_CONFIG_NAME="${CURRENT_USER}"
+    log_info "Using full configuration: $HM_CONFIG_NAME"
+fi
+
+# ==============================================================================
+# Install/Update Home Manager
+# ==============================================================================
+
+# Check if home-manager command is available
+if ! command -v home-manager &>/dev/null; then
+    log_info "Installing Home Manager..."
+    
+    # Try channel-based installation first
+    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager 2>/dev/null || true
+    nix-channel --update 2>/dev/null || true
+    
+    # Install home-manager
+    nix-shell '<home-manager>' -A install 2>/dev/null || {
+        log_info "Channel install failed, using flake-based approach..."
+    }
+fi
+
+# ==============================================================================
+# Build and Activate Configuration
+# ==============================================================================
+
+cd "$HM_CONFIG_DIR"
+
+log_info "Building Home Manager configuration..."
+log_info "This may take a few minutes on first run..."
+
+# Try to build and switch
+SWITCH_SUCCESS=false
+
+# Method 1: Use home-manager command if available
+if command -v home-manager &>/dev/null; then
+    log_info "Attempting switch with home-manager command..."
+    if home-manager switch --flake ".#${HM_CONFIG_NAME}" 2>&1; then
+        SWITCH_SUCCESS=true
+    elif home-manager switch --flake ".#${CURRENT_USER}" 2>&1; then
+        SWITCH_SUCCESS=true
+    fi
+fi
+
+# Method 2: Use nix run if home-manager command failed
+if [ "$SWITCH_SUCCESS" = "false" ]; then
+    log_info "Attempting switch with nix run..."
+    if nix run home-manager/master -- switch --flake ".#${HM_CONFIG_NAME}" 2>&1; then
+        SWITCH_SUCCESS=true
+    elif nix run home-manager/master -- switch --flake ".#${CURRENT_USER}" 2>&1; then
+        SWITCH_SUCCESS=true
+    fi
+fi
+
+# Method 3: Build only (for debugging)
+if [ "$SWITCH_SUCCESS" = "false" ]; then
+    log_warn "Switch failed, attempting build only..."
+    if nix build ".#homeConfigurations.${HM_CONFIG_NAME}.activationPackage" 2>&1; then
+        log_info "Build succeeded, attempting manual activation..."
+        ./result/activate 2>&1 || true
+        SWITCH_SUCCESS=true
+    elif nix build ".#homeConfigurations.${CURRENT_USER}.activationPackage" 2>&1; then
+        ./result/activate 2>&1 || true
+        SWITCH_SUCCESS=true
+    fi
+fi
+
+cd - > /dev/null
+
+# ==============================================================================
+# Report status
+# ==============================================================================
+
+if [ "$SWITCH_SUCCESS" = "true" ]; then
+    log_success "Home Manager configuration activated successfully!"
+    
+    # List installed packages
+    if command -v home-manager &>/dev/null; then
+        log_info "Installed packages:"
+        home-manager packages 2>/dev/null | head -20 || true
+    fi
+else
+    log_error "Home Manager activation failed"
+    log_warn "You may need to run manually:"
+    log_warn "  cd ~/.config/home-manager && nix run home-manager/master -- switch --flake ."
+    log_warn ""
+    log_warn "Or check the flake for errors:"
+    log_warn "  cd ~/.config/home-manager && nix flake check"
+fi
+{{ end -}}

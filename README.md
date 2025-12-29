@@ -4,9 +4,9 @@
 
 # 🏠 Yuzu's Dotfiles
 
-### *Infrastructure as Code for Development Environments*
+### *Infrastructure as Code for Development Environments (2025/2026)*
 
-*Managed with [Chezmoi](https://chezmoi.io) ❄️ • Declarative with [Nix](https://nixos.org) 🤖 • Themed with [Catppuccin](https://catppuccin.com) 🎨*
+*Managed with [Chezmoi](https://chezmoi.io) ❄️ • Declarative with [Nix](https://nixos.org) + [Home Manager](https://nix-community.github.io/home-manager/) 🤖 • Themed with [Catppuccin](https://catppuccin.com) 🎨*
 
 <br/>
 
@@ -14,11 +14,13 @@
 [![Arch Linux](https://img.shields.io/badge/Arch_Linux-1793D1?style=for-the-badge&logo=arch-linux&logoColor=white)](https://archlinux.org/)
 [![Ubuntu](https://img.shields.io/badge/Ubuntu-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)](https://ubuntu.com/)
 [![Fedora](https://img.shields.io/badge/Fedora-51A2DA?style=for-the-badge&logo=fedora&logoColor=white)](https://fedoraproject.org/)
+[![openSUSE](https://img.shields.io/badge/openSUSE-73BA25?style=for-the-badge&logo=opensuse&logoColor=white)](https://www.opensuse.org/)
+[![Alpine](https://img.shields.io/badge/Alpine-0D597F?style=for-the-badge&logo=alpine-linux&logoColor=white)](https://alpinelinux.org/)
 
 [![WSL2](https://img.shields.io/badge/WSL2-0078D4?style=for-the-badge&logo=windows-terminal&logoColor=white)](https://docs.microsoft.com/en-us/windows/wsl/)
 [![Nix](https://img.shields.io/badge/Nix-5277C3?style=for-the-badge&logo=nixos&logoColor=white)](https://nixos.org/)
-[![DeepWiki](https://img.shields.io/badge/DeepWiki-View%20Wiki-0ea5ff?style=for-the-badge)](https://deepwiki.com/Yuzu02/dotfiles)
 [![Home Manager](https://img.shields.io/badge/Home_Manager-41454A?style=for-the-badge&logo=nixos&logoColor=white)](https://nix-community.github.io/home-manager/)
+[![DeepWiki](https://img.shields.io/badge/DeepWiki-View%20Wiki-0ea5ff?style=for-the-badge)](https://deepwiki.com/Yuzu02/dotfiles)
 
 [![Chezmoi](https://img.shields.io/badge/Chezmoi-1C1C1C?style=for-the-badge&logo=git&logoColor=white)](https://chezmoi.io/)
 [![Zsh](https://img.shields.io/badge/Zsh-F15A24?style=for-the-badge&logo=zsh&logoColor=white)](https://www.zsh.org/)
@@ -57,10 +59,13 @@
   - [One-Line Bootstrap](#one-line-bootstrap)
   - [Manual Installation](#manual-installation)
 - [🏗️ Architecture](#%EF%B8%8F-architecture)
-  - [System Architecture (C4)](#system-architecture-c4)
+  - [System Architecture (C4 Context)](#system-architecture-c4-context)
+  - [Container Diagram](#container-diagram)
+  - [Architecture Diagram](#architecture-diagram)
   - [Bootstrap Sequence](#bootstrap-sequence)
   - [State Machine](#state-machine)
   - [Timeline](#timeline)
+  - [Gantt Chart](#gantt-chart)
 - [🧰 Tool Stack](#-tool-stack)
   - [Tool Selection Matrix](#tool-selection-matrix)
   - [Package Distribution](#package-distribution)
@@ -85,49 +90,51 @@
 
 ## 📖 Overview
 
-This repository contains my personal dotfiles and system configurations, managed as **Infrastructure as Code** for **maximum reproducibility**. A single command bootstraps a fresh **Linux** installation (Arch, Ubuntu, Fedora, or WSL2) with all my tools, configurations, and preferences.
+This repository contains my personal dotfiles and system configurations, managed as **Infrastructure as Code** for **maximum reproducibility**. A single command bootstraps a fresh **Linux** installation with all my tools, configurations, and preferences using the power of **Chezmoi + Nix Home Manager** integration.
 
 ### ✨ Features
 
 | Feature | Description |
 |:--------|:------------|
-| 🔄 **Reproducible** | Same environment on any machine, byte-for-byte identical |
-| 🐧 **Multi-Distro** | Works on Arch, Ubuntu, Fedora, and their derivatives |
-| 🔐 **Templated** | Machine-specific configs and secrets handled safely |
-| 🚀 **Fast Bootstrap** | Single command setup, works from fresh root install |
-| 🌐 **Cross-Platform** | Arch Linux, Ubuntu, Fedora, WSL2 support |
-| 📦 **Layered** | Right tool for the right job (Pacman → mise → Nix) |
-| 🎨 **Themed** | Consistent Catppuccin Mocha across all tools |
+| 🔄 **Reproducible** | Same environment on any machine via Nix + Home Manager |
+| 🐧 **Universal Linux** | Works on Arch, Ubuntu, Debian, Fedora, openSUSE, Alpine, and more |
+| 🔐 **Templated** | Machine-specific configs and secrets handled safely via Chezmoi |
+| 🚀 **One Command Setup** | Single command setup from fresh install to ready-to-code |
+| 📦 **Hybrid Management** | Chezmoi for dotfiles + Home Manager for packages |
+| 🎨 **Themed** | Consistent Catppuccin Mocha across all 40+ tools |
 | ⚡ **Modern CLI** | Rust-based replacements for classic Unix tools |
-| 🏠 **Declarative** | Home Manager for reproducible user configuration |
+| 🏠 **Declarative** | Nix flakes for reproducible, rollback-able configuration |
+| ❄️ **Nix Flakes** | Modern Nix with flakes enabled by default |
 
 ### 🎯 Design Principles
 
 ```mermaid
 quadrantChart
-    title Tool Selection Strategy
+    title Tool Selection Strategy (2025/2026)
     x-axis Simple Setup --> Complex Setup
     y-axis Low Reproducibility --> High Reproducibility
-    quadrant-1 Nix Flakes
+    quadrant-1 Pure Nix
     quadrant-2 Home Manager
-    quadrant-3 mise
-    quadrant-4 Pacman/Paru
-    mise: [0.25, 0.45]
-    Pacman: [0.15, 0.30]
-    Paru: [0.20, 0.35]
+    quadrant-3 Traditional
+    quadrant-4 Imperative
+    
+    mise: [0.25, 0.50]
+    Pacman: [0.15, 0.25]
+    Paru: [0.20, 0.30]
     Nix Flakes: [0.85, 0.95]
-    Home Manager: [0.70, 0.85]
-    Chezmoi: [0.35, 0.70]
-    direnv: [0.55, 0.80]
+    Home Manager: [0.70, 0.90]
+    Chezmoi: [0.40, 0.75]
+    direnv: [0.55, 0.85]
+    Chezmoi + HM: [0.60, 0.92]
 ```
 
 | # | Principle | Implementation |
 |:-:|:----------|:---------------|
-| 1️⃣ | **Reproducibility First** | Every tool and config is version-controlled |
-| 2️⃣ | **Single Source of Truth** | All configuration lives in Git |
-| 3️⃣ | **Layered Management** | Right tool for the right job |
-| 4️⃣ | **Modern Performance** | Rust-based tools where possible |
-| 5️⃣ | **Minimal Friction** | Auto-activation, smart defaults |
+| 1️⃣ | **Reproducibility First** | Nix + Home Manager ensures byte-for-byte identical environments |
+| 2️⃣ | **Hybrid Management** | Chezmoi handles templates/secrets, Home Manager handles packages |
+| 3️⃣ | **Universal Compatibility** | Determinate Systems Nix installer works on any Linux distro |
+| 4️⃣ | **Modern Performance** | Rust-based tools (starship, atuin, eza, bat, ripgrep) |
+| 5️⃣ | **Minimal Friction** | Auto-activation via chezmoi run_onchange scripts |
 
 ---
 
@@ -136,54 +143,90 @@ quadrantChart
 ### One-Line Bootstrap
 
 ```bash
-# 🔥 Fresh Linux install - fully automatic setup!
-# Works on Arch, Ubuntu, Fedora, and derivatives
+# 🔥 Universal Linux bootstrap - works on ANY distro!
+# Arch, Ubuntu, Debian, Fedora, openSUSE, Alpine, WSL2...
 sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply Yuzu02
+
+# Or with custom options:
+curl -fsLS https://raw.githubusercontent.com/Yuzu02/dotfiles/master/install.sh | bash
 ```
 
-> **✨ Fully Automatic:** Works on fresh Linux installations even as root! The script detects your distribution, installs required packages, creates a user, and sets everything up automatically.
+> **✨ Fully Automatic:** Detects your distribution, installs Nix via Determinate Systems installer, sets up Home Manager, and configures everything with a single command!
 
 ### Supported Distributions
 
-| Distribution | Package Manager | Status |
-|:-------------|:----------------|:-------|
-| 🔵 **Arch Linux** | pacman/paru/yay | ✅ Fully Supported |
-| 🟠 **Ubuntu/Debian** | apt-get | ✅ Fully Supported |
-| 🔴 **Fedora/RHEL** | dnf | ✅ Fully Supported |
-| 🟢 **WSL2** | Any of above | ✅ Fully Supported |
+| Distribution | Package Manager | Nix Support | Status |
+|:-------------|:----------------|:------------|:-------|
+| 🔵 **Arch Linux** | pacman/paru/yay | ✅ | Fully Supported |
+| 🟠 **Ubuntu/Debian** | apt-get | ✅ | Fully Supported |
+| 🔴 **Fedora/RHEL** | dnf | ✅ | Fully Supported |
+| 🟢 **openSUSE** | zypper | ✅ | Fully Supported |
+| 🔷 **Alpine Linux** | apk | ✅ | Fully Supported |
+| 🟣 **Void Linux** | xbps | ✅ | Fully Supported |
+| ⬜ **NixOS** | nix | Native | Fully Supported |
+| 🪟 **WSL2** | Any of above | ✅ | Fully Supported |
 
 ### What Happens Automatically
 
-| Step | Action |
-|:-----|:-------|
-| 1️⃣ | Detects your Linux distribution |
-| 2️⃣ | Initializes package manager (pacman keys, apt repos, dnf cache) |
-| 3️⃣ | Installs sudo and build tools |
-| 4️⃣ | Creates a regular user (uses your GitHub username) |
-| 5️⃣ | Configures sudo for wheel/sudo group |
-| 6️⃣ | Automatically switches to new user |
-| 7️⃣ | Continues installation as regular user |
-| 8️⃣ | Installs shell tools, modern CLI, dev tools |
-
-> **Note:** If running as root, a user will be created with temporary password `changeme`. The script will automatically switch to that user and continue the installation.
+```mermaid
+timeline
+    title Dotfiles Bootstrap Journey (2025)
+    
+    section Phase 1 - Detection
+        System Probe : Detect Linux distribution
+                    : Identify package manager
+                    : Check for WSL/Container
+                    : Determine architecture
+    
+    section Phase 2 - Foundation
+        Base Setup : Install curl and git
+                  : Setup sudo if needed
+                  : Create user if root
+        Nix Install : Determinate Systems installer
+                   : Enable flakes by default
+                   : Configure nix.conf
+    
+    section Phase 3 - Chezmoi
+        Dotfiles Init : Install chezmoi binary
+                     : Clone dotfiles repository
+                     : Run pre-apply scripts
+        Template Apply : Render machine-specific configs
+                      : Copy static files
+                      : Setup XDG directories
+    
+    section Phase 4 - Home Manager
+        Nix Build : Parse flake.nix
+                 : Resolve dependencies
+                 : Build derivations
+        Activation : Install packages
+                  : Generate configs
+                  : Create symlinks
+    
+    section Phase 5 - Ready
+        Shell Setup : Configure Zsh
+                   : Enable Starship prompt
+                   : Setup Atuin history
+        Complete : Modern CLI available
+                : Catppuccin themed
+                : Ready to code!
+```
 
 ### Manual Installation
 
 ```bash
-# 1️⃣ Install chezmoi
-sudo pacman -S chezmoi       # Arch
-sudo apt-get install chezmoi # Ubuntu/Debian
-sudo dnf install chezmoi     # Fedora
-# or
-curl -fsLS get.chezmoi.io | sh  # Universal
+# 1️⃣ Install Nix (via Determinate Systems - recommended for 2025)
+curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | sh -s -- install
 
-# 2️⃣ Initialize dotfiles
+# 2️⃣ Install chezmoi
+nix profile install nixpkgs#chezmoi
+
+# 3️⃣ Initialize dotfiles
 chezmoi init https://github.com/Yuzu02/dotfiles.git
 
-# 3️⃣ Preview changes
+# 4️⃣ Preview changes
 chezmoi diff
 
-# 4️⃣ Apply
+# 5️⃣ Apply (triggers Home Manager automatically)
 chezmoi apply -v
 ```
 
@@ -191,30 +234,125 @@ chezmoi apply -v
 
 ## 🏗️ Architecture
 
-### System Architecture (C4)
+### System Architecture (C4 Context)
 
 ```mermaid
 C4Context
-    title Dotfiles System Architecture
-    
-    Person(user, "Developer", "Uses the development environment")
-    
-    System(chezmoi, "Chezmoi", "Dotfiles management & templating")
-    System(hm, "Home Manager", "Declarative user config")
-    SystemDb(nix, "Nix Store", "Immutable package store")
-    System(mise, "mise", "Development tool manager")
-    System(shell, "Zsh + Starship", "Interactive shell")
-    System(cli, "Modern CLI", "eza, bat, ripgrep, fd")
-    
-    System_Ext(github, "GitHub", "Dotfiles repository")
-    System_Ext(nixpkgs, "Nixpkgs", "Package repository")
-    System_Ext(aur, "AUR", "Arch User Repository")
-    
-    Rel(user, shell, "Uses")
+    title Dotfiles System Architecture - Chezmoi + Nix Integration
+
+    Enterprise_Boundary(env, "Development Environment") {
+        Person(dev, "Developer", "Uses the development environment daily")
+        
+        System_Boundary(dotfiles, "Dotfiles Management") {
+            System(chezmoi, "Chezmoi", "Templated dotfile management, secrets handling, cross-machine sync")
+            System(hm, "Home Manager", "Declarative Nix-based user configuration")
+        }
+        
+        System_Boundary(pkgmgmt, "Package Management") {
+            SystemDb(nixstore, "Nix Store", "Immutable package store with atomic upgrades")
+            System(mise, "mise", "Polyglot tool version manager")
+            System(native, "Native PM", "pacman/apt/dnf for system packages")
+        }
+        
+        System_Boundary(shell, "Shell Environment") {
+            System(zsh, "Zsh + Starship", "Modern shell with Rust-powered prompt")
+            System(tools, "Modern CLI", "eza, bat, ripgrep, fd, fzf, zoxide")
+        }
+    }
+
+    System_Ext(github, "GitHub", "Source repository for dotfiles")
+    System_Ext(nixpkgs, "Nixpkgs", "Nix package collection")
+    System_Ext(determinate, "Determinate Systems", "Nix installer")
+
+    Rel(dev, zsh, "Uses daily")
+    Rel(dev, tools, "Commands")
     Rel(chezmoi, github, "Syncs from")
-    Rel(hm, nix, "Manages")
-    Rel(nix, nixpkgs, "Fetches from")
-    Rel(mise, cli, "Installs")
+    Rel(chezmoi, hm, "Triggers activation")
+    Rel(hm, nixstore, "Manages packages")
+    Rel(nixstore, nixpkgs, "Fetches from")
+    Rel(native, determinate, "Installs Nix via")
+
+    UpdateLayoutConfig($c4ShapeInRow="3", $c4BoundaryInRow="2")
+```
+
+### Container Diagram
+
+```mermaid
+C4Container
+    title Container Diagram - Dotfiles Application Stack
+
+    Person(user, "Developer", "End user of the dotfiles system")
+
+    Container_Boundary(bootstrap, "Bootstrap Layer") {
+        Container(install, "install.sh", "Bash", "Universal bootstrap script with OS detection")
+        Container(scripts, "Chezmoi Scripts", "Bash/Tmpl", "Ordered installation scripts run_once_before_*")
+    }
+
+    Container_Boundary(config, "Configuration Layer") {
+        Container(chezmoi_core, "Chezmoi Core", "Go", "Template rendering, file management, secrets")
+        Container(templates, "Dotfile Templates", "Go Template", "Machine-specific configs via templating")
+        ContainerDb(state, "Chezmoi State", "SQLite", "Tracks applied changes and script runs")
+    }
+
+    Container_Boundary(nix_layer, "Nix Layer") {
+        Container(flake, "flake.nix", "Nix", "Flake-based reproducible configuration")
+        Container(home_nix, "home.nix", "Nix", "User package and program declarations")
+        ContainerDb(nix_store, "Nix Store", "Content-addressed", "Immutable package storage")
+    }
+
+    Container_Boundary(shell_layer, "Shell Layer") {
+        Container(zsh_config, "Zsh Config", "Zsh", "Shell configuration and aliases")
+        Container(starship, "Starship", "Rust", "Cross-shell prompt with theming")
+        Container(atuin, "Atuin", "Rust", "Encrypted shell history sync")
+    }
+
+    Rel(user, install, "Runs once")
+    Rel(install, scripts, "Triggers")
+    Rel(scripts, chezmoi_core, "Invokes")
+    Rel(chezmoi_core, templates, "Renders")
+    Rel(chezmoi_core, state, "Updates")
+    Rel(chezmoi_core, flake, "Writes to ~/.config/home-manager")
+    Rel(flake, home_nix, "Imports")
+    Rel(home_nix, nix_store, "Builds into")
+    Rel(nix_store, zsh_config, "Provides to")
+    Rel(zsh_config, starship, "Loads")
+    Rel(zsh_config, atuin, "Integrates")
+```
+
+### Architecture Diagram
+
+```mermaid
+architecture-beta
+    group bootstrap(cloud)[Bootstrap Layer]
+    group config(cloud)[Configuration Layer]  
+    group packages(cloud)[Package Layer]
+    group shell(cloud)[Shell Layer]
+
+    service install(server)[Install Script] in bootstrap
+    service scripts(server)[Chezmoi Scripts] in bootstrap
+
+    service chezmoi(database)[Chezmoi] in config
+    service templates(disk)[Templates] in config
+    service hm(database)[Home Manager] in config
+
+    service nix(server)[Nix Store] in packages
+    service mise(server)[mise] in packages
+    service native(server)[Native PM] in packages
+
+    service zsh(server)[Zsh] in shell
+    service starship(server)[Starship] in shell
+    service tools(server)[CLI Tools] in shell
+
+    install:R --> L:scripts
+    scripts:B --> T:chezmoi
+    chezmoi:R --> L:templates
+    chezmoi:B --> T:hm
+    hm:B --> T:nix
+    nix:R --> L:mise
+    mise:R --> L:native
+    nix:B --> T:zsh
+    zsh:R --> L:starship
+    starship:R --> L:tools
 ```
 
 ### Bootstrap Sequence
@@ -222,46 +360,56 @@ C4Context
 ```mermaid
 sequenceDiagram
     autonumber
-    participant User as 👤 User
+    
+    actor User as 👤 Developer
     participant Install as 📜 install.sh
+    participant System as 🐧 Linux System
+    participant Nix as ❄️ Nix/Home Manager
     participant Chezmoi as 🏠 Chezmoi
-    participant Scripts as ⚙️ Scripts
-    participant System as 🐧 System
-
+    participant HM as 📦 Home Manager
+    
     rect rgb(49, 50, 68)
-        Note over User,System: Bootstrap Phase
+        Note over User,HM: Phase 1: System Detection & Bootstrap
         User->>Install: curl install.sh | sh
-        Install->>Install: Detect OS & WSL
-        Install->>Chezmoi: Install chezmoi
-        Chezmoi->>Chezmoi: chezmoi init --apply
+        Install->>System: Detect OS (arch/ubuntu/fedora...)
+        Install->>System: Detect environment (WSL/Container)
+        System-->>Install: OS info + architecture
+        Install->>System: Install base dependencies (curl, git)
     end
-
+    
     rect rgb(30, 102, 145)
-        Note over Chezmoi,System: Configuration Phase
-        Chezmoi->>Scripts: 00-setup-arch-fresh
-        Scripts->>System: pacman-key --init
-        Scripts->>System: Install sudo, base-devel
-        Chezmoi->>Scripts: 01-install-dependencies
-        Scripts->>System: Core packages
+        Note over Install,Nix: Phase 2: Nix Installation
+        Install->>Nix: curl determinate.systems/nix
+        Nix->>System: Install Nix daemon
+        Nix->>System: Enable flakes + nix-command
+        Nix-->>Install: Nix ready
     end
-
+    
+    rect rgb(137, 180, 250)
+        Note over Install,Chezmoi: Phase 3: Chezmoi Setup
+        Install->>Chezmoi: Install chezmoi
+        Chezmoi->>Chezmoi: chezmoi init Yuzu02/dotfiles
+        Chezmoi->>System: Run pre-scripts (00-05)
+        Chezmoi->>System: Apply dotfile templates
+        Chezmoi->>System: Write ~/.config/home-manager/*
+    end
+    
     rect rgb(166, 227, 161)
-        Note over Chezmoi,System: Tool Installation
-        Chezmoi->>Scripts: 02-install-nix
-        Scripts->>System: Nix + Flakes
-        Chezmoi->>Scripts: 03-install-shell-tools
-        Scripts->>System: zsh, starship, atuin
-        Chezmoi->>Scripts: 04-install-modern-cli
-        Scripts->>System: eza, bat, ripgrep, fd
-        Chezmoi->>Scripts: 05-install-dev-tools
-        Scripts->>System: mise, bun, node, uv
+        Note over Chezmoi,HM: Phase 4: Home Manager Activation
+        Chezmoi->>HM: Trigger run_onchange script
+        HM->>Nix: nix run home-manager -- switch
+        Nix->>Nix: Build flake configuration
+        Nix->>System: Install packages to Nix store
+        HM->>System: Activate generation
+        HM-->>User: Environment ready!
     end
-
+    
     rect rgb(203, 166, 247)
-        Note over Chezmoi,System: Dotfiles Application
-        Chezmoi->>System: Apply templates
-        Chezmoi->>System: Copy configs
-        System-->>User: ✅ Environment Ready!
+        Note over User,HM: Daily Usage
+        User->>Chezmoi: chezmoi update
+        Chezmoi->>HM: Detect config changes
+        HM->>Nix: Rebuild if needed
+        Nix-->>User: Updated environment
     end
 ```
 
@@ -269,116 +417,111 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
-    direction LR
-    [*] --> FreshArch: curl install.sh
-
-    state FreshArch {
-        direction TB
-        [*] --> DetectRoot
-        DetectRoot --> InstallSudo: root user
-        DetectRoot --> SkipSudo: has sudo
-        InstallSudo --> ConfigWheel
-        ConfigWheel --> InitKeyring
-        SkipSudo --> InitKeyring
-        InitKeyring --> [*]
-    }
-
-    FreshArch --> Dependencies: 01-dependencies
-
-    state Dependencies {
-        direction TB
-        [*] --> DetectPkgMgr
-        DetectPkgMgr --> Pacman: Arch
-        DetectPkgMgr --> Apt: Debian
-        DetectPkgMgr --> Dnf: Fedora
-        Pacman --> InstallCore
-        Apt --> InstallCore
-        Dnf --> InstallCore
-        InstallCore --> [*]
-    }
-
-    Dependencies --> NixSetup: 02-nix
+    direction TB
     
-    state NixSetup {
-        [*] --> CheckNix
-        CheckNix --> SkipNix: installed
-        CheckNix --> InstallNix: not found
-        InstallNix --> EnableFlakes
-        SkipNix --> [*]
-        EnableFlakes --> [*]
+    [*] --> Detect: curl install.sh | sh
+    
+    state Detect {
+        direction LR
+        [*] --> OS_Check
+        OS_Check --> Arch: /etc/os-release = arch
+        OS_Check --> Debian: /etc/os-release = debian/ubuntu
+        OS_Check --> Fedora: /etc/os-release = fedora/rhel
+        OS_Check --> NixOS: /etc/NIXOS exists
+        OS_Check --> Other: Unknown distro
+        
+        Arch --> PKG_Ready
+        Debian --> PKG_Ready
+        Fedora --> PKG_Ready
+        NixOS --> NIX_Ready
+        Other --> PKG_Ready
+        
+        PKG_Ready --> [*]
+        NIX_Ready --> [*]
     }
-
-    NixSetup --> ShellTools: 03-shell
-
-    state ShellTools {
-        direction TB
-        [*] --> InstallZsh
-        InstallZsh --> InstallOhMyZsh
-        InstallOhMyZsh --> InstallPlugins
-        InstallPlugins --> InstallStarship
-        InstallStarship --> [*]
+    
+    Detect --> BaseDeps: Install base packages
+    
+    state BaseDeps {
+        direction LR
+        [*] --> curl_git
+        curl_git --> build_tools
+        build_tools --> [*]
     }
-
-    ShellTools --> ModernCLI: 04-cli
-    ModernCLI --> DevTools: 05-dev
-    DevTools --> ApplyDotfiles
-    ApplyDotfiles --> [*]: Ready!
+    
+    BaseDeps --> NixInstall: Determinate Systems installer
+    
+    state NixInstall {
+        direction LR
+        [*] --> check_existing
+        check_existing --> skip: Nix found
+        check_existing --> install: Not found
+        install --> enable_flakes
+        skip --> [*]
+        enable_flakes --> [*]
+    }
+    
+    NixInstall --> ChezmoiSetup
+    
+    state ChezmoiSetup {
+        direction LR
+        [*] --> install_chezmoi
+        install_chezmoi --> init_repo
+        init_repo --> apply_templates
+        apply_templates --> [*]
+    }
+    
+    ChezmoiSetup --> HomeManager
+    
+    state HomeManager {
+        direction LR
+        [*] --> build_config
+        build_config --> activate
+        activate --> verify
+        verify --> [*]
+    }
+    
+    HomeManager --> [*]: Environment Ready!
 ```
 
-### Timeline
-
-```mermaid
-timeline
-    title Dotfiles Evolution
-    section System Bootstrap
-        Fresh Install : Detect OS
-                     : Initialize pacman
-                     : Install sudo
-        User Setup : Create user
-                   : Configure wheel
-    section Tool Stack
-        Package Managers : Pacman (system)
-                        : Paru (AUR)
-                        : mise (dev tools)
-        Nix Ecosystem : Nix + Flakes
-                     : Home Manager
-                     : direnv
-    section Shell Environment
-        Shell Setup : Zsh + Oh My Zsh
-                   : Starship prompt
-                   : Atuin history
-        Modern CLI : eza, bat, ripgrep
-                  : fd, zoxide, fzf
-    section Configuration
-        Dotfiles : Chezmoi templates
-                : Home Manager configs
-        Complete : Ready to code!
-```
-
-### Bootstrap Timeline (Gantt)
+### Gantt Chart
 
 ```mermaid
 gantt
-    title Dotfiles Bootstrap Timeline
+    title Dotfiles Bootstrap Timeline (Estimated Duration)
     dateFormat X
-    axisFormat %s
+    axisFormat %s seconds
     
-    section System Setup
-        Detect OS & Environment    :done, detect, 0, 2
-        Initialize Pacman Keys     :done, keys, after detect, 3
-        Install sudo & base-devel  :done, sudo, after keys, 5
+    section Detection
+        Detect OS          :done, detect, 0, 1
+        Detect WSL         :done, wsl, 1, 1
+        Check Architecture :done, arch, 2, 1
     
-    section Package Installation
-        Core Dependencies          :active, deps, after sudo, 4
-        Nix + Flakes              :nix, after deps, 6
-        Shell Tools (zsh, starship):shell, after nix, 5
-        Modern CLI Tools          :cli, after shell, 4
-        Dev Tools (mise, bun)     :dev, after cli, 3
+    section Base Setup
+        Install curl/git       :active, curl, 3, 3
+        Sudo Configuration     :sudo, after curl, 2
+        Package Manager Update :pkgupd, after sudo, 5
     
-    section Configuration
-        Apply Dotfile Templates    :config, after dev, 3
-        Setup Home Manager        :hm, after config, 4
-        Final Configuration       :final, after hm, 2
+    section Nix Installation
+        Download Installer     :nixdl, after pkgupd, 3
+        Install Nix Daemon     :nixinst, after nixdl, 15
+        Enable Flakes          :flakes, after nixinst, 2
+    
+    section Chezmoi Setup
+        Install Chezmoi        :cz, after flakes, 3
+        Clone Repository       :clone, after cz, 5
+        Run Pre-Scripts        :scripts, after clone, 20
+        Apply Templates        :apply, after scripts, 5
+    
+    section Home Manager
+        Initial Build          :crit, hmbuild, after apply, 60
+        Package Installation   :crit, hmpkgs, after hmbuild, 30
+        Activation             :hmact, after hmpkgs, 5
+    
+    section Finalization
+        Shell Configuration    :shell, after hmact, 3
+        Verification           :verify, after shell, 2
+        Ready                  :milestone, done, after verify, 0
 ```
 
 ---
@@ -387,23 +530,24 @@ gantt
 
 ### Tool Selection Matrix
 
-| Layer | Tool | Purpose | Why Not Alternative? |
-|:------|:-----|:--------|:---------------------|
-| **System** | `pacman` + `paru` | System packages | Native, fastest, bleeding edge |
-| **Dev Tools** | `mise` | Runtime management | 15x faster than asdf (Rust vs Bash) |
-| **Declarative** | `Nix` + `Home Manager` | Reproducible config | True reproducibility, rollbacks |
+| Layer | Tool | Purpose | Why This Choice? |
+|:------|:-----|:--------|:-----------------|
+| **Installer** | Determinate Systems | Nix installation | Works on any distro, SELinux compatible, better uninstall |
 | **Dotfiles** | `chezmoi` | Config management | Templates, secrets, one-command deploy |
+| **Packages** | `Home Manager` | Declarative packages | Reproducible, rollbacks, Catppuccin integration |
+| **Dev Tools** | `mise` | Runtime management | 15x faster than asdf (Rust vs Bash) |
 | **Shell** | `zsh` + `starship` | Interactive shell | POSIX compatible, fastest prompt (Rust) |
+| **History** | `atuin` | Shell history | Encrypted sync, fuzzy search |
 
 ### Package Distribution
 
 ```mermaid
 pie showData
-    title Package Management Distribution
-    "Pacman/Paru (System)" : 30
-    "mise (Dev Runtimes)" : 25
-    "Nix/Home Manager" : 35
-    "Chezmoi (Dotfiles)" : 10
+    title Package Management Distribution (2025)
+    "Nix/Home Manager" : 45
+    "Native PM (Arch/Apt/Dnf)" : 20
+    "mise (Dev Runtimes)" : 20
+    "Chezmoi (Config Files)" : 15
 ```
 
 ### Complete Tool List
