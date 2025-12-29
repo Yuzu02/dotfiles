@@ -312,6 +312,15 @@ EOF
         log_info "Switching to user $NEW_USER and continuing installation..."
         log_info ""
         
+        # Copy chezmoi binary to system-wide location
+        if command -v chezmoi &>/dev/null; then
+            CHEZMOI_BIN=$(command -v chezmoi)
+            if [ ! -f /usr/local/bin/chezmoi ]; then
+                cp "$CHEZMOI_BIN" /usr/local/bin/chezmoi
+                chmod +x /usr/local/bin/chezmoi
+            fi
+        fi
+        
         # Copy chezmoi config to new user's home
         if [ -f /root/.config/chezmoi/chezmoi.toml ]; then
             mkdir -p /home/$NEW_USER/.config/chezmoi
@@ -328,14 +337,19 @@ EOF
         
         # Continue installation as new user
         log_info "Continuing installation as $NEW_USER..."
-        su - $NEW_USER -c "chezmoi apply -v" || {
-            log_warn "Continuing installation as $NEW_USER..."
-            su - $NEW_USER -c "sh -c \"\$(curl -fsLS get.chezmoi.io)\" -- init --apply {{ .github_user }}"
-        }
+        if command -v chezmoi &>/dev/null; then
+            su - $NEW_USER -c "cd ~ && /usr/local/bin/chezmoi apply -v" || {
+                log_warn "chezmoi apply failed, trying init..."
+                su - $NEW_USER -c "cd ~ && /usr/local/bin/chezmoi init --apply {{ .github_user }}"
+            }
+        else
+            log_warn "Installing chezmoi for $NEW_USER..."
+            su - $NEW_USER -c "cd ~ && sh -c \"\$(curl -fsLS get.chezmoi.io)\" -- init --apply {{ .github_user }}"
+        fi
         
         log_success "Installation complete!"
         log_warn "Please change the password for $NEW_USER (currently: changeme)"
-        echo -e "${YELLOW}passwd${NC}"
+        echo -e "${YELLOW}Run: passwd${NC}"
         exit 0
     fi
 fi
