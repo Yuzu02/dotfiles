@@ -10,8 +10,9 @@
 {{- /* ============================================================================ */ -}}
 
 {{- /* Get defaults from environment or git config */ -}}
-{{- $defaultEmail := or (env "CHEZMOI_EMAIL") (env "GIT_AUTHOR_EMAIL") (output "git" "config" "--global" "user.email" | trim) "user@localhost" -}}
-{{- $defaultName := or (env "CHEZMOI_NAME") (env "GIT_AUTHOR_NAME") (output "git" "config" "--global" "user.name" | trim) (env "USER") "User" -}}
+{{- /* Prefer explicit env vars; avoid executing external commands during init */ -}}
+{{- $defaultEmail := or (env "CHEZMOI_EMAIL") (env "GIT_AUTHOR_EMAIL") (env "GIT_EMAIL") "user@localhost" -}}
+{{- $defaultName := or (env "CHEZMOI_NAME") (env "GIT_AUTHOR_NAME") (env "GIT_NAME") (env "USER") "User" -}}
 {{- $defaultGithubUser := or (env "CHEZMOI_GITHUB_USER") (env "GITHUB_USER") (env "USER") "Yuzu02" -}}
 
 {{- /* Handle interactive vs non-interactive mode using stdinIsATTY */ -}}
