@@ -2,7 +2,7 @@
 
 {
   # ============================================================================
-  # HOME MANAGER MINIMAL CONFIGURATION (2025/2026)
+  # HOME MANAGER MINIMAL CONFIGURATION (2025/2026 - FIXED)
   # Lightweight setup for quick deploys, containers, and CI environments
   # ============================================================================
 
@@ -12,7 +12,7 @@
     stateVersion = "24.11";
 
     packages = with pkgs; [
-      # ── Essential CLI Tools ────────────────────────────────────────────────
+      # ── Essential CLI Tools ─────────────────────────────────────────────────
       eza                 # ls replacement
       bat                 # cat replacement
       ripgrep             # grep replacement
@@ -20,14 +20,15 @@
       fzf                 # fuzzy finder
       zoxide              # cd replacement
       
-      # ── Editor ─────────────────────────────────────────────────────────────
+      # ── Editor ──────────────────────────────────────────────────────────────
       neovim
       
-      # ── Shell Tools ────────────────────────────────────────────────────────
+      # ── Shell Tools ─────────────────────────────────────────────────────────
       starship            # Prompt
       atuin               # History
+      zsh                 # Shell
       
-      # ── Utilities ──────────────────────────────────────────────────────────
+      # ── Utilities ───────────────────────────────────────────────────────────
       jq                  # JSON processor
       git                 # Version control
     ];
@@ -58,7 +59,10 @@
     };
     
     # Prompt
-    starship.enable = true;
+    starship = {
+      enable = true;
+      enableZshIntegration = true;
+    };
     
     # History
     atuin = {
@@ -79,7 +83,13 @@
     };
     
     # Git (minimal config)
-    git.enable = true;
+    git = {
+      enable = true;
+      # FIXED: Use settings instead of extraConfig
+      settings = {
+        init.defaultBranch = "main";
+      };
+    };
   };
 
   # XDG directories

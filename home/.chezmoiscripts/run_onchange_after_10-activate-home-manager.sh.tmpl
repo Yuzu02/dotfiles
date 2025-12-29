@@ -1,7 +1,7 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 10-ACTIVATE-HOME-MANAGER (Universal - 2025/2026 Best Practices)
+# 10-ACTIVATE-HOME-MANAGER (Universal - 2025/2026 Best Practices - FIXED)
 # Automatically builds and activates Home Manager configuration
 # Triggers on: flake.nix, home.nix, home-minimal.nix changes
 # ==============================================================================
@@ -26,9 +26,9 @@ log_success() { echo -e "${GREEN}[✓]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 echo -e "${CYAN}  🏠 Home Manager Activation${NC}"
-echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+echo -e "${CYAN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
 
 # ==============================================================================
 # Check prerequisites
@@ -83,25 +83,7 @@ else
 fi
 
 # ==============================================================================
-# Install/Update Home Manager
-# ==============================================================================
-
-# Check if home-manager command is available
-if ! command -v home-manager &>/dev/null; then
-    log_info "Installing Home Manager..."
-    
-    # Try channel-based installation first
-    nix-channel --add https://github.com/nix-community/home-manager/archive/master.tar.gz home-manager 2>/dev/null || true
-    nix-channel --update 2>/dev/null || true
-    
-    # Install home-manager
-    nix-shell '<home-manager>' -A install 2>/dev/null || {
-        log_info "Channel install failed, using flake-based approach..."
-    }
-fi
-
-# ==============================================================================
-# Build and Activate Configuration
+# Build and Activate Configuration (FIXED: Simplified approach)
 # ==============================================================================
 
 cd "$HM_CONFIG_DIR"
@@ -109,39 +91,58 @@ cd "$HM_CONFIG_DIR"
 log_info "Building Home Manager configuration..."
 log_info "This may take a few minutes on first run..."
 
-# Try to build and switch
+# FIXED: Use direct home-manager command with proper flake reference
 SWITCH_SUCCESS=false
 
-# Method 1: Use home-manager command if available
+# Method 1: Try with home-manager if available
 if command -v home-manager &>/dev/null; then
-    log_info "Attempting switch with home-manager command..."
-    if home-manager switch --flake ".#${HM_CONFIG_NAME}" 2>&1; then
+    log_info "Attempting activation with home-manager command..."
+    if home-manager switch --flake ".#${HM_CONFIG_NAME}" 2>&1 | tee /tmp/hm-switch.log; then
         SWITCH_SUCCESS=true
-    elif home-manager switch --flake ".#${CURRENT_USER}" 2>&1; then
-        SWITCH_SUCCESS=true
+        log_success "Home Manager activated successfully!"
+    else
+        log_warn "Failed with config name: ${HM_CONFIG_NAME}, trying fallback..."
+        if home-manager switch --flake ".#${CURRENT_USER}" 2>&1 | tee -a /tmp/hm-switch.log; then
+            SWITCH_SUCCESS=true
+            log_success "Home Manager activated with fallback config!"
+        fi
     fi
 fi
 
-# Method 2: Use nix run if home-manager command failed
-if [ "$SWITCH_SUCCESS" = "false" ]; then
-    log_info "Attempting switch with nix run..."
-    if nix run home-manager/master -- switch --flake ".#${HM_CONFIG_NAME}" 2>&1; then
+# Method 2: Try with nix run if home-manager command not available
+if [ "$SWITCH_SUCCESS" = "false" ] && ! command -v home-manager &>/dev/null; then
+    log_info "Installing and running home-manager via nix..."
+    if nix run home-manager/master -- switch --flake ".#${HM_CONFIG_NAME}" 2>&1 | tee /tmp/hm-switch.log; then
         SWITCH_SUCCESS=true
-    elif nix run home-manager/master -- switch --flake ".#${CURRENT_USER}" 2>&1; then
-        SWITCH_SUCCESS=true
+        log_success "Home Manager activated successfully!"
+    else
+        log_warn "Failed with config name: ${HM_CONFIG_NAME}, trying fallback..."
+        if nix run home-manager/master -- switch --flake ".#${CURRENT_USER}" 2>&1 | tee -a /tmp/hm-switch.log; then
+            SWITCH_SUCCESS=true
+            log_success "Home Manager activated with fallback config!"
+        fi
     fi
 fi
 
-# Method 3: Build only (for debugging)
+# Method 3: Try to build and manually activate
 if [ "$SWITCH_SUCCESS" = "false" ]; then
-    log_warn "Switch failed, attempting build only..."
-    if nix build ".#homeConfigurations.${HM_CONFIG_NAME}.activationPackage" 2>&1; then
+    log_warn "Direct activation failed, trying manual build..."
+    
+    # Try to build the configuration
+    if nix build ".#homeConfigurations.${HM_CONFIG_NAME}.activationPackage" 2>&1 | tee -a /tmp/hm-switch.log; then
         log_info "Build succeeded, attempting manual activation..."
-        ./result/activate 2>&1 || true
-        SWITCH_SUCCESS=true
-    elif nix build ".#homeConfigurations.${CURRENT_USER}.activationPackage" 2>&1; then
-        ./result/activate 2>&1 || true
-        SWITCH_SUCCESS=true
+        if ./result/activate 2>&1 | tee -a /tmp/hm-switch.log; then
+            SWITCH_SUCCESS=true
+            log_success "Home Manager manually activated!"
+        fi
+    else
+        log_warn "Failed with config name: ${HM_CONFIG_NAME}, trying fallback..."
+        if nix build ".#homeConfigurations.${CURRENT_USER}.activationPackage" 2>&1 | tee -a /tmp/hm-switch.log; then
+            if ./result/activate 2>&1 | tee -a /tmp/hm-switch.log; then
+                SWITCH_SUCCESS=true
+                log_success "Home Manager manually activated with fallback config!"
+            fi
+        fi
     fi
 fi
 
@@ -152,19 +153,39 @@ cd - > /dev/null
 # ==============================================================================
 
 if [ "$SWITCH_SUCCESS" = "true" ]; then
-    log_success "Home Manager configuration activated successfully!"
+    log_success "✨ Home Manager configuration activated successfully!"
     
-    # List installed packages
-    if command -v home-manager &>/dev/null; then
-        log_info "Installed packages:"
-        home-manager packages 2>/dev/null | head -20 || true
+    # List some installed packages
+    echo ""
+    log_info "Sample of installed packages:"
+    if command -v eza &>/dev/null; then
+        echo "  ✓ eza (ls replacement)"
     fi
+    if command -v bat &>/dev/null; then
+        echo "  ✓ bat (cat replacement)"
+    fi
+    if command -v ripgrep &>/dev/null; then
+        echo "  ✓ ripgrep (grep replacement)"
+    fi
+    if command -v starship &>/dev/null; then
+        echo "  ✓ starship (prompt)"
+    fi
+    if command -v atuin &>/dev/null; then
+        echo "  ✓ atuin (history)"
+    fi
+    echo ""
 else
-    log_error "Home Manager activation failed"
-    log_warn "You may need to run manually:"
-    log_warn "  cd ~/.config/home-manager && nix run home-manager/master -- switch --flake ."
-    log_warn ""
-    log_warn "Or check the flake for errors:"
-    log_warn "  cd ~/.config/home-manager && nix flake check"
+    log_error "❌ Home Manager activation failed"
+    log_info ""
+    log_info "Debug information saved to: /tmp/hm-switch.log"
+    log_info ""
+    log_info "To troubleshoot:"
+    log_info "  1. Check the log file: cat /tmp/hm-switch.log"
+    log_info "  2. Validate the flake: cd ~/.config/home-manager && nix flake check"
+    log_info "  3. Try manual activation:"
+    log_info "     cd ~/.config/home-manager"
+    log_info "     home-manager switch --flake .#${CURRENT_USER}"
+    log_info ""
+    exit 1
 fi
 {{ end -}}

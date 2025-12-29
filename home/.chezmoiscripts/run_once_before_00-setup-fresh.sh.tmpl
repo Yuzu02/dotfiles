@@ -4,9 +4,6 @@
 # 00-SETUP-LINUX-FRESH (Universal - 2025/2026 Best Practices - FIXED)
 # Bootstrap script for fresh Linux installations
 # Handles: sudo installation, user creation, package manager setup
-# 
-# KEY DESIGN: This script only runs as root on truly fresh systems.
-# For regular users, it exits immediately.
 # ==============================================================================
 
 set -euo pipefail
@@ -103,7 +100,7 @@ if [ "$IS_ROOT" = true ]; then
             pacman -S --needed --noconfirm \
                 base-devel git curl wget sudo vim \
                 man-db man-pages openssh unzip zip \
-                tar gzip xdg-utils less 2>/dev/null || true
+                tar gzip xdg-utils less zsh 2>/dev/null || true
             log_success "Essential packages installed"
             
             # Configure sudo for wheel group
@@ -123,12 +120,22 @@ if [ "$IS_ROOT" = true ]; then
             apt-get update 2>/dev/null || true
             log_success "Package lists updated"
             
+            # FIXED: Set locale before installing packages
+            log_info "Configuring locale..."
+            DEBIAN_FRONTEND=noninteractive apt-get install -y locales 2>/dev/null || true
+            sed -i 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true
+            locale-gen 2>/dev/null || true
+            update-locale LANG=en_US.UTF-8 2>/dev/null || true
+            export LANG=en_US.UTF-8
+            export LC_ALL=en_US.UTF-8
+            log_success "Locale configured"
+            
             # Install essential packages
             log_info "Installing essential packages..."
             DEBIAN_FRONTEND=noninteractive apt-get install -y \
                 build-essential git curl wget sudo vim \
                 man-db manpages openssh-client unzip zip \
-                tar gzip xdg-utils less ca-certificates 2>/dev/null || true
+                tar gzip xdg-utils less ca-certificates zsh 2>/dev/null || true
             log_success "Essential packages installed"
             ;;
             
@@ -145,11 +152,11 @@ if [ "$IS_ROOT" = true ]; then
             dnf install -y \
                 @development-tools git curl wget sudo vim \
                 man-db man-pages openssh-clients unzip zip \
-                tar gzip xdg-utils less 2>/dev/null || \
+                tar gzip xdg-utils less zsh 2>/dev/null || \
             yum install -y \
                 git curl wget sudo vim \
                 man-db man-pages openssh-clients unzip zip \
-                tar gzip less 2>/dev/null || true
+                tar gzip less zsh 2>/dev/null || true
             log_success "Essential packages installed"
             
             # Configure sudo for wheel group
@@ -176,7 +183,7 @@ if [ "$IS_ROOT" = true ]; then
                 -t pattern devel_basis \
                 git curl wget sudo vim \
                 man man-pages openssh unzip zip \
-                tar gzip xdg-utils less 2>/dev/null || true
+                tar gzip xdg-utils less zsh 2>/dev/null || true
             log_success "Essential packages installed"
             ;;
             
@@ -193,7 +200,7 @@ if [ "$IS_ROOT" = true ]; then
             apk add --no-cache \
                 build-base git curl wget sudo vim \
                 man-db man-pages openssh-client unzip zip \
-                tar gzip xdg-utils less bash 2>/dev/null || true
+                tar gzip xdg-utils less bash zsh 2>/dev/null || true
             log_success "Essential packages installed"
             ;;
             
@@ -210,7 +217,7 @@ if [ "$IS_ROOT" = true ]; then
             xbps-install -y \
                 base-devel git curl wget sudo vim \
                 man-db man-pages openssh unzip zip \
-                tar gzip xdg-utils 2>/dev/null || true
+                tar gzip xdg-utils zsh 2>/dev/null || true
             log_success "Essential packages installed"
             ;;
             
@@ -225,35 +232,39 @@ if [ "$IS_ROOT" = true ]; then
             
             # Try common package managers
             if command -v apt-get &>/dev/null; then
-                apt-get update && apt-get install -y sudo git curl 2>/dev/null || true
+                apt-get update && apt-get install -y sudo git curl zsh 2>/dev/null || true
             elif command -v dnf &>/dev/null; then
-                dnf install -y sudo git curl 2>/dev/null || true
+                dnf install -y sudo git curl zsh 2>/dev/null || true
             elif command -v pacman &>/dev/null; then
-                pacman -S --noconfirm sudo git curl 2>/dev/null || true
+                pacman -S --noconfirm sudo git curl zsh 2>/dev/null || true
             fi
             ;;
     esac
     
     # ========================================================================
-    # CONFIGURE LOCALES
+    # CONFIGURE LOCALES (FIXED: Unified approach for all distros)
     # ========================================================================
     log_info "Configuring locales..."
     case "$DISTRO" in
         arch|archlinux|endeavouros|manjaro)
             if [ -f /etc/locale.gen ]; then
-                sed -i 's/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true
+                sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen 2>/dev/null || true
                 locale-gen 2>/dev/null || true
             fi
             if [ ! -f /etc/locale.conf ]; then
                 echo "LANG=en_US.UTF-8" > /etc/locale.conf
             fi
+            # Export for current session
+            export LANG=en_US.UTF-8
+            export LC_ALL=en_US.UTF-8
             ;;
         ubuntu|debian|linuxmint|pop)
-            locale-gen en_US.UTF-8 2>/dev/null || true
-            update-locale LANG=en_US.UTF-8 2>/dev/null || true
+            # Already handled above
             ;;
         fedora|rhel|centos|rocky|almalinux)
             localectl set-locale LANG=en_US.UTF-8 2>/dev/null || true
+            export LANG=en_US.UTF-8
+            export LC_ALL=en_US.UTF-8
             ;;
     esac
     log_success "Locales configured"
@@ -265,9 +276,9 @@ if [ "$IS_ROOT" = true ]; then
     case "$DISTRO" in
         arch|archlinux|endeavouros|manjaro)
             if [ -f /etc/pacman.conf ]; then
-                sed -i 's/#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf 2>/dev/null || true
-                sed -i 's/#Color/Color/' /etc/pacman.conf 2>/dev/null || true
-                sed -i 's/#VerbosePkgLists/VerbosePkgLists/' /etc/pacman.conf 2>/dev/null || true
+                sed -i 's/^#ParallelDownloads = 5/ParallelDownloads = 10/' /etc/pacman.conf 2>/dev/null || true
+                sed -i 's/^#Color/Color/' /etc/pacman.conf 2>/dev/null || true
+                sed -i 's/^#VerbosePkgLists/VerbosePkgLists/' /etc/pacman.conf 2>/dev/null || true
             fi
             ;;
         fedora|rhel|centos|rocky|almalinux)

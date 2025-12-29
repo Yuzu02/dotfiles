@@ -1,7 +1,7 @@
 {{ if eq .chezmoi.os "linux" -}}
 #!/bin/bash
 # ==============================================================================
-# 03-INSTALL-SHELL-TOOLS
+# 03-INSTALL-SHELL-TOOLS (FIXED)
 # Modern shell tools: zsh, starship, zoxide, atuin, fzf, direnv
 # ==============================================================================
 
@@ -40,98 +40,124 @@ elif command -v apt-get &>/dev/null; then
 elif command -v dnf &>/dev/null; then
     PKG_INSTALL="$SUDO dnf install -y"
 else
-    echo "No supported package manager found!"
-    exit 1
+    echo -e "${YELLOW}[WARN]${NC} No supported package manager found - skipping native package installation"
+    PKG_INSTALL=""
 fi
 
-# Install shell packages based on distro
-if command -v pacman &>/dev/null; then
-    # Arch Linux
-    SHELL_PKGS=(
-        zsh
-        starship
-        zoxide
-        atuin
-        fzf
-        direnv
-        carapace
-    )
-    $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1 || {
-        echo -e "${YELLOW}⚠ Some packages may have failed, continuing...${NC}"
-    }
-elif command -v apt-get &>/dev/null; then
-    # Ubuntu/Debian
-    $SUDO apt-get update &>/dev/null
-    SHELL_PKGS=(
-        zsh
-        fzf
-        direnv
-    )
-    $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
-    
-    # Install starship via curl
-    if ! command -v starship &>/dev/null; then
-        curl -sS https://starship.rs/install.sh | sh -s -- -y &>/dev/null
-    fi
-    
-    # Install zoxide via cargo or curl
-    if ! command -v zoxide &>/dev/null; then
-        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
-    fi
-    
-    # Install atuin via cargo or curl
-    if ! command -v atuin &>/dev/null; then
-        curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
-    fi
-    
-elif command -v dnf &>/dev/null; then
-    # Fedora/RHEL
-    SHELL_PKGS=(
-        zsh
-        starship
-        fzf
-        direnv
-    )
-    $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
-    
-    # Install zoxide
-    if ! command -v zoxide &>/dev/null; then
-        curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
-    fi
-    
-    # Install atuin
-    if ! command -v atuin &>/dev/null; then
-        curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
+# ============================================================================
+# INSTALL ZSH FIRST (CRITICAL FIX)
+# ============================================================================
+echo -e "${BLUE}[INFO]${NC} Installing zsh..."
+if ! command -v zsh &>/dev/null; then
+    if [ -n "$PKG_INSTALL" ]; then
+        $PKG_INSTALL zsh &>/dev/null || {
+            echo -e "${YELLOW}⚠ Could not install zsh via package manager${NC}"
+        }
     fi
 fi
 
-# Install Oh My Zsh if not present
+# Verify zsh is installed
+if ! command -v zsh &>/dev/null; then
+    echo -e "${YELLOW}⚠ zsh not found - skipping Oh My Zsh and shell tools${NC}"
+    exit 0
+fi
+
+echo -e "${GREEN}✓${NC} zsh installed"
+
+# ============================================================================
+# INSTALL SHELL PACKAGES
+# ============================================================================
+if [ -n "$PKG_INSTALL" ]; then
+    if command -v pacman &>/dev/null; then
+        # Arch Linux
+        SHELL_PKGS=(
+            starship
+            zoxide
+            atuin
+            fzf
+            direnv
+            carapace
+        )
+        $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1 || {
+            echo -e "${YELLOW}⚠ Some packages may have failed, continuing...${NC}"
+        }
+    elif command -v apt-get &>/dev/null; then
+        # Ubuntu/Debian
+        $SUDO apt-get update &>/dev/null
+        SHELL_PKGS=(
+            fzf
+            direnv
+        )
+        $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
+        
+        # Install starship via curl
+        if ! command -v starship &>/dev/null; then
+            curl -sS https://starship.rs/install.sh | sh -s -- -y &>/dev/null
+        fi
+        
+        # Install zoxide via curl
+        if ! command -v zoxide &>/dev/null; then
+            curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
+        fi
+        
+        # Install atuin via curl
+        if ! command -v atuin &>/dev/null; then
+            curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
+        fi
+        
+    elif command -v dnf &>/dev/null; then
+        # Fedora/RHEL
+        SHELL_PKGS=(
+            starship
+            fzf
+            direnv
+        )
+        $PKG_INSTALL "${SHELL_PKGS[@]}" &>/dev/null 2>&1
+        
+        # Install zoxide
+        if ! command -v zoxide &>/dev/null; then
+            curl -sS https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash &>/dev/null
+        fi
+        
+        # Install atuin
+        if ! command -v atuin &>/dev/null; then
+            curl -sS https://raw.githubusercontent.com/atuinsh/atuin/main/install.sh | bash &>/dev/null
+        fi
+    fi
+fi
+
+# ============================================================================
+# INSTALL OH MY ZSH (FIXED: Only if zsh exists)
+# ============================================================================
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
-    # Ensure zsh is installed before running Oh My Zsh installer
-    if ! command -v zsh &>/dev/null; then
-        echo -e "${YELLOW}⚠ zsh not found, skipping Oh My Zsh${NC}"
-        exit 0
-    fi
-    
+    echo -e "${BLUE}[INFO]${NC} Installing Oh My Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended &>/dev/null
+    echo -e "${GREEN}✓${NC} Oh My Zsh installed"
+else
+    echo -e "${GREEN}✓${NC} Oh My Zsh already installed"
 fi
 
-# Install Zsh plugins
+# ============================================================================
+# INSTALL ZSH PLUGINS
+# ============================================================================
 ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
 # zsh-autosuggestions
 if [ ! -d "$ZSH_CUSTOM/plugins/zsh-autosuggestions" ]; then
     git clone --quiet https://github.com/zsh-users/zsh-autosuggestions "$ZSH_CUSTOM/plugins/zsh-autosuggestions" 2>/dev/null
+    echo -e "${GREEN}✓${NC} zsh-autosuggestions installed"
 fi
 
 # zsh-syntax-highlighting
 if [ ! -d "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" ]; then
     git clone --quiet https://github.com/zsh-users/zsh-syntax-highlighting.git "$ZSH_CUSTOM/plugins/zsh-syntax-highlighting" 2>/dev/null
+    echo -e "${GREEN}✓${NC} zsh-syntax-highlighting installed"
 fi
 
 # you-should-use
 if [ ! -d "$ZSH_CUSTOM/plugins/you-should-use" ]; then
     git clone --quiet https://github.com/MichaelAquilina/zsh-you-should-use.git "$ZSH_CUSTOM/plugins/you-should-use" 2>/dev/null
+    echo -e "${GREEN}✓${NC} you-should-use installed"
 fi
 
 echo -e "${GREEN}✓ Shell tools installed${NC}"

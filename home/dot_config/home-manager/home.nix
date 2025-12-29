@@ -7,7 +7,7 @@ let
 in
 {
   # ============================================================================
-  # HOME MANAGER CONFIGURATION (2025/2026 Best Practices)
+  # HOME MANAGER CONFIGURATION (2025/2026 Best Practices - FIXED)
   # Full featured setup with Catppuccin theming and modern CLI tools
   # Integrates with Chezmoi for hybrid dotfile management
   # ============================================================================
@@ -73,7 +73,7 @@ in
     ];
 
     # =========================================================================
-    # SESSION VARIABLES
+    # SESSION VARIABLES - FIXED: Removed FZF_DEFAULT_OPTS (handled by fzf module)
     # =========================================================================
     sessionVariables = {
       EDITOR = "nvim";
@@ -89,7 +89,7 @@ in
       
       # Tool-specific
       BAT_THEME = "Catppuccin Mocha";
-      FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border --color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8 --color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc --color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8";
+      # FZF_DEFAULT_OPTS removed - handled by programs.fzf.defaultOptions
     };
 
     # =========================================================================
@@ -187,6 +187,7 @@ in
     # ── Git ──────────────────────────────────────────────────────────────────
     git = {
       enable = true;
+      
       delta = {
         enable = true;
         options = {
@@ -196,7 +197,8 @@ in
         };
       };
       
-      extraConfig = {
+      # FIXED: Use settings instead of extraConfig
+      settings = {
         init.defaultBranch = "main";
         pull.rebase = true;
         push.autoSetupRemote = true;
@@ -233,7 +235,7 @@ in
       options = [ "--cmd cd" ];
     };
     
-    # ── Fuzzy Finder ─────────────────────────────────────────────────────────
+    # ── Fuzzy Finder - FIXED: Use defaultOptions with lib.mkForce ────────────
     fzf = {
       enable = true;
       enableZshIntegration = true;
@@ -241,6 +243,9 @@ in
         "--height 40%"
         "--layout=reverse"
         "--border"
+        "--color=bg+:#313244,bg:#1e1e2e,spinner:#f5e0dc,hl:#f38ba8"
+        "--color=fg:#cdd6f4,header:#f38ba8,info:#cba6f7,pointer:#f5e0dc"
+        "--color=marker:#f5e0dc,fg+:#cdd6f4,prompt:#cba6f7,hl+:#f38ba8"
       ];
     };
     

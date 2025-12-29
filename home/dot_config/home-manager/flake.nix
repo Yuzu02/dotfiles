@@ -1,5 +1,5 @@
 {
-  description = "Yuzu's Home Manager configuration (2025/2026 Best Practices)";
+  description = "Yuzu's Home Manager configuration (2025/2026 Best Practices - FIXED)";
 
   inputs = {
     # Core inputs - pinned to unstable for latest packages
@@ -25,33 +25,25 @@
     
     # Flake utilities
     flake-utils.url = "github:numtide/flake-utils";
-    
-    # NixGL for OpenGL on non-NixOS
-    nixgl = {
-      url = "github:nix-community/nixGL";
-      inputs.nixpkgs.follows = "nixpkgs";
-    };
   };
 
-  outputs = { self, nixpkgs, home-manager, catppuccin, nix-index-database, flake-utils, nixgl, ... }@inputs:
+  outputs = { self, nixpkgs, home-manager, catppuccin, nix-index-database, flake-utils, ... }@inputs:
     let
-      # Common Home Manager modules
-      commonModules = [
-        catppuccin.homeManagerModules.catppuccin
-        nix-index-database.hmModules.nix-index
-      ];
+      # Systems to support
+      systems = [ "x86_64-linux" "aarch64-linux" ];
       
       # Helper function to create home configuration
-      mkHomeConfiguration = { system, username, configFile }:
+      mkHomeConfiguration = { system, username }:
         home-manager.lib.homeManagerConfiguration {
           pkgs = import nixpkgs {
             inherit system;
             config.allowUnfree = true;
-            overlays = [ nixgl.overlay ];
           };
           
-          modules = commonModules ++ [
-            configFile
+          modules = [
+            catppuccin.homeModules.catppuccin  # FIXED: Use homeModules instead of homeManagerModules
+            nix-index-database.homeModules.nix-index  # FIXED: Use homeModules instead of hmModules
+            ./home.nix
             {
               home = {
                 username = username;
@@ -62,83 +54,58 @@
           ];
           
           extraSpecialArgs = {
-            inherit inputs nixgl;
+            inherit inputs;
+          };
+        };
+      
+      # Helper for minimal config
+      mkMinimalConfiguration = { system, username }:
+        home-manager.lib.homeManagerConfiguration {
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
+          
+          modules = [
+            ./home-minimal.nix
+            {
+              home = {
+                username = username;
+                homeDirectory = "/home/${username}";
+                stateVersion = "24.11";
+              };
+            }
+          ];
+          
+          extraSpecialArgs = {
+            inherit inputs;
           };
         };
         
     in
-    flake-utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
-      {
-        # Make homeConfigurations available per-system in legacyPackages
-        # This fixes the "does not provide attribute" error
-        legacyPackages = {
-          homeConfigurations = {
-            # Full configuration - use actual username or "root" for root user
-            "root" = mkHomeConfiguration {
-              inherit system;
-              username = "root";
-              configFile = ./home.nix;
-            };
-            
-            # Minimal configuration
-            "root-minimal" = mkHomeConfiguration {
-              inherit system;
-              username = "root";
-              configFile = ./home-minimal.nix;
-            };
-            
-            # Generic username configurations
-            "yuzu" = mkHomeConfiguration {
-              inherit system;
-              username = "yuzu";
-              configFile = ./home.nix;
-            };
-            
-            "yuzu-minimal" = mkHomeConfiguration {
-              inherit system;
-              username = "yuzu";
-              configFile = ./home-minimal.nix;
-            };
-            
-            # Default fallback
-            "default" = mkHomeConfiguration {
-              inherit system;
-              username = builtins.getEnv "USER";
-              configFile = ./home.nix;
-            };
-          };
-        };
-      }
-    ) // {
-      # ALSO provide top-level homeConfigurations for compatibility
-      # This allows both methods to work:
-      # - nix build .#homeConfigurations.root.activationPackage
-      # - nix build .#legacyPackages.x86_64-linux.homeConfigurations.root.activationPackage
-      homeConfigurations = let
-        system = "x86_64-linux";
-      in {
+    {
+      # FIXED: Direct homeConfigurations without nested structure
+      homeConfigurations = {
+        # Full configurations
         "root" = mkHomeConfiguration {
-          inherit system;
+          system = "x86_64-linux";
           username = "root";
-          configFile = ./home.nix;
-        };
-        
-        "root-minimal" = mkHomeConfiguration {
-          inherit system;
-          username = "root";
-          configFile = ./home-minimal.nix;
         };
         
         "yuzu" = mkHomeConfiguration {
-          inherit system;
+          system = "x86_64-linux";
           username = "yuzu";
-          configFile = ./home.nix;
         };
         
-        "yuzu-minimal" = mkHomeConfiguration {
-          inherit system;
+        # Minimal configurations
+        "root-minimal" = mkMinimalConfiguration {
+          system = "x86_64-linux";
+          username = "root";
+        };
+        
+        "yuzu-minimal" = mkMinimalConfiguration {
+          system = "x86_64-linux";
           username = "yuzu";
-          configFile = ./home-minimal.nix;
         };
       };
       
